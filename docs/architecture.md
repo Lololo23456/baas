@@ -174,19 +174,29 @@ Attestor agréé (Synaps, Fractal ID...)
 
 ```
 src/
-├── FinBankVault.sol          (474 lignes) — Vault ERC-4626 principal
+├── FinBankVault.sol          (490 lignes) — Vault ERC-4626 principal + hooks distributor
+├── FBKToken.sol              (160 lignes) — Token de gouvernance $FBK
+├── VeFBK.sol                 (210 lignes) — Vote-Escrowed FBK (modèle Curve veCRV)
+├── FBKDistributor.sol        (165 lignes) — Distribution $FBK (pattern Synthetix StakingRewards)
+├── FinBankGovernor.sol       (270 lignes) — Governor on-chain (cycle complet + timelock)
 ├── interfaces/
 │   ├── IMorpho.sol           (79 lignes)  — Interface Morpho Blue
 │   └── IEAS.sol              (34 lignes)  — Interface EAS
 ├── utils/
 │   └── EASChecker.sol        (151 lignes) — Vérificateur d'attestations KYC
 ├── test/
-│   └── FinBankVault.t.sol    (423 lignes) — 12 tests Foundry
+│   ├── FinBankVault.t.sol    (423 lignes) — 15 tests Foundry (Vault)
+│   ├── FBKToken.t.sol        (250 lignes) — 33 tests Foundry (Token)
+│   ├── VeFBK.t.sol           (320 lignes) — 46 tests Foundry (veFBK)
+│   ├── FBKDistributor.t.sol  (280 lignes) — 33 tests Foundry (Distributor)
+│   └── FinBankGovernor.t.sol (420 lignes) — 42 tests Foundry (Governor)
 └── script/
     └── Deploy.s.sol          (110 lignes) — Script de déploiement Base mainnet
 ```
 
-### Tests couverts
+**Total : 169 tests — 0 échec**
+
+### Tests FinBankVault couverts (15)
 - Dépôt avec KYC valide ✓
 - Dépôt sans KYC → revert ✓
 - Dépôt montant zéro → revert ✓
@@ -198,13 +208,175 @@ src/
 - Fee à 15% (précision) ✓
 - setFee() onlyOwner ✓
 - setFee() plafond 30% → revert ✓
+- setTreasury() onlyOwner ✓
 - Prix des shares augmente avec le yield ✓
+- Scénario complet freelance (dépôt → yield → retrait avec profit) ✓
+- Migration de marché ✓
 
-### Contrats restants à écrire
-- [ ] `FBKToken.sol` — ERC-20 token de gouvernance $FBK
-- [ ] `VeFBK.sol` — Staking + vote-escrowed ($veFBK)
-- [ ] `FBKDistributor.sol` — Distribution $FBK par usage (yield généré + ancienneté)
-- [ ] `FinBankGovernor.sol` — Governor on-chain (OpenZeppelin Governor ou équivalent)
+### Tests FBKToken couverts (33)
+- Déploiement : owner, minter, supply initiale zéro ✓
+- Déploiement avec minter adresse zéro → revert ✓
+- Constantes (name, symbol, decimals, MAX_SUPPLY) ✓
+- mint() par le minter → succès ✓
+- mint() par non-minter → revert NotMinter ✓
+- mint() par owner (DAO) → revert NotMinter ✓
+- mint() dépassant le cap 100M → revert CapExceeded ✓
+- mint() exactement au cap → succès ✓
+- mint() vers adresse zéro → revert ZeroAddress ✓
+- mint() émet event Transfer(0x0 → to) ✓
+- burn() propres tokens ✓
+- burn() dépassant le solde → revert ✓
+- burnFrom() avec allowance (buy-back DAO) ✓
+- burnFrom() avec allowance infinie → pas de décrément ✓
+- burnFrom() allowance insuffisante → revert ✓
+- transfer() standard ERC-20 ✓
+- transfer() solde insuffisant → revert ✓
+- transferFrom() avec approval ✓
+- transferFrom() allowance insuffisante → revert ✓
+- approve() émet event Approval ✓
+- remainingMintable() diminue avec les mints ✓
+- supplyEmittedBps() = 0 au départ ✓
+- supplyEmittedBps() = 1000 après 10% de mint ✓
+- supplyEmittedBps() = 10000 après mint complet ✓
+- setMinter() par owner → succès ✓
+- setMinter() par non-owner → revert NotOwner ✓
+- setMinter() vers adresse zéro → revert ZeroAddress ✓
+- setMinter() émet event MinterUpdated ✓
+- transferOwnership() par owner → succès ✓
+- transferOwnership() par non-owner → revert NotOwner ✓
+- transferOwnership() vers adresse zéro → revert ZeroAddress ✓
+- Scénario Fair Launch complet (mint 3 freelances + buy-back & burn) ✓
+
+### Tests VeFBK couverts (46)
+- Déploiement : fbk address, totalLocked zéro ✓
+- Déploiement avec adresse zéro → revert ✓
+- createLock() succès : montant, end, totalLocked, transfert FBK ✓
+- createLock() arrondi à la semaine ✓
+- createLock() montant zéro → revert ZeroAmount ✓
+- createLock() durée trop courte → revert LockTooShort ✓
+- createLock() durée trop longue → revert LockTooLong ✓
+- createLock() durée min exacte → succès ✓
+- createLock() durée max exacte → succès ✓
+- createLock() lock déjà existant → revert LockAlreadyExists ✓
+- createLock() émet event LockCreated ✓
+- increaseAmount() succès : montant, totalLocked, transfert ✓
+- increaseAmount() montant zéro → revert ZeroAmount ✓
+- increaseAmount() sans lock → revert NoLockFound ✓
+- increaseAmount() lock expiré → revert LockExpired ✓
+- increaseAmount() émet event LockIncreased ✓
+- extendLock() succès : nouvel end arrondi à la semaine ✓
+- extendLock() sans lock → revert NoLockFound ✓
+- extendLock() lock expiré → revert LockExpired ✓
+- extendLock() date non ultérieure → revert NewEndNotLater ✓
+- extendLock() trop long → revert ✓
+- extendLock() émet event LockExtended ✓
+- withdraw() après expiration : solde, totalLocked, remboursement FBK ✓
+- withdraw() sans lock → revert NoLockFound ✓
+- withdraw() avant expiration → revert LockNotExpired ✓
+- withdraw() exactement à l'expiration → succès ✓
+- withdraw() émet event Withdrawn ✓
+- balanceOf() sans lock → 0 ✓
+- balanceOf() lock expiré → 0 ✓
+- balanceOf() lock max 4 ans → proche du montant ✓
+- balanceOf() lock 2 ans → ~50% du montant ✓
+- balanceOf() décroît avec le temps ✓
+- balanceOf() = 0 à l'expiration ✓
+- balanceOfAt() timestamp futur → balance inférieure ✓
+- balanceOfAt() après expiration → 0 ✓
+- remainingLockDuration() lock actif → > 0 ✓
+- remainingLockDuration() après expiration → 0 ✓
+- remainingLockDuration() sans lock → 0 ✓
+- isExpired() lock actif → false ✓
+- isExpired() après expiration → true ✓
+- isExpired() sans lock → true ✓
+- totalLocked() avec plusieurs utilisateurs ✓
+- totalLocked() diminue après withdraw ✓
+- Scénario complet : lock → increaseAmount → extendLock → withdraw ✓
+- Non-transférable : Bob ne peut pas avoir de veFBK sans créer un lock ✓
+
+### Tests FBKDistributor couverts (33)
+- Déploiement : fbk, vault, owner, rewardRate, immutables ✓
+- Déploiement avec adresse zéro fbk/vault → revert ✓
+- notifyDeposit() onlyVault → revert si appelé directement ✓
+- notifyDeposit() met à jour userShares et totalShares ✓
+- notifyDeposit() plusieurs utilisateurs → totalShares cumulé ✓
+- notifyDeposit() émet event SharesUpdated ✓
+- notifyWithdraw() onlyVault → revert si appelé directement ✓
+- notifyWithdraw() décrémente userShares et totalShares ✓
+- notifyWithdraw() émet event SharesUpdated ✓
+- earned() = 0 avant tout dépôt ✓
+- earned() s'accumule proportionnellement au temps ✓
+- earned() proportionnel aux shares (Alice 25% / Bob 75%) ✓
+- earned() = 0 si rewardRate = 0 ✓
+- earned() préservé après retrait partiel ✓
+- earned() cesse après retrait total ✓
+- claim() minte le montant exact sur FBKToken ✓
+- claim() remet pendingReward à 0 ✓
+- claim() incrémente totalDistributed ✓
+- claim() sans reward → revert NothingToClaim ✓
+- claim() émet event Claimed ✓
+- claim() peut être appelé plusieurs fois ✓
+- setRewardRate() onlyOwner → revert sinon ✓
+- setRewardRate() met à jour le taux ✓
+- setRewardRate() préserve les rewards déjà accumulées ✓
+- setRewardRate() émet event RewardRateUpdated ✓
+- remainingMintable() = cap complet au départ ✓
+- remainingMintable() diminue après claim() ✓
+- transferOwnership() succès ✓
+- transferOwnership() non-owner → revert ✓
+- transferOwnership() adresse zéro → revert ✓
+- Scénario : deux utilisateurs avec dépôts décalés → proportionnalité correcte ✓
+- Scénario : changement de taux en cours de route → rewards segmentées ✓
+
+### Couplage FinBankVault ↔ FBKDistributor
+- `FinBankVault.setDistributor(address)` — configure le distributor (onlyOwner)
+- `deposit()` appelle `distributor.notifyDeposit(receiver, shares)` si distributor != address(0)
+- `redeem()` appelle `distributor.notifyWithdraw(owner_, shares)` si distributor != address(0)
+- Le distributor est le seul `minter` sur FBKToken — garantit le Fair Launch
+
+### Tests FinBankGovernor couverts (42)
+- Déploiement : veFBK, paramètres, adresse zéro, période zéro, quorum > 100% → revert ✓
+- propose() : succès, id incrémenté, en dessous du threshold → revert ✓
+- propose() : cibles vides → revert, arrays mismatch → revert ✓
+- propose() : voteStart / voteEnd calculés correctement ✓
+- getState() : Pending → Active → Succeeded → Queued → Executed ✓
+- getState() : Defeated si quorum non atteint ✓
+- getState() : Defeated si majorité Against ✓
+- getState() : Canceled après cancel() ✓
+- castVote() : revert si pas Active, revert si double vote ✓
+- castVote() : poids For/Against/Abstain proportionnel au veFBK ✓
+- castVote() : poids 0 si aucun veFBK ✓
+- castVote() : émet event VoteCast ✓
+- queue() : revert si pas Succeeded, émet event, eta = now + timelockDelay ✓
+- execute() : revert avant expiry du timelock ✓
+- execute() : appelle le contrat cible, émet event ✓
+- execute() : revert si pas Queued ✓
+- cancel() : succès par le proposant, émet event ✓
+- cancel() : revert si non-proposant, si déjà exécuté, si déjà annulé ✓
+- quorumVotes() : proportionnel au totalLocked ✓
+- setVotingDelay/Period/TimelockDelay/QuorumBps/ProposalThreshold : onlyGovernance → revert ✓
+- Gouvernance auto-amendable : proposition → vote → exécution → paramètre modifié ✓
+- Scénario complet : Pending → Active → vote → Succeeded → Queued → Executed ✓
+
+### Architecture governance
+- Pouvoir de vote : `veFBK.balanceOfAt(user, snapshotTimestamp)` — snapshot au moment du propose()
+- Quorum : `totalLocked * quorumBps / 10000` (4% par défaut)
+- Timelock intégré : pas de contrat séparé, délai géré dans le Governor
+- Auto-amendable : les paramètres ne peuvent être modifiés que par proposition DAO exécutée (`onlyGovernance`)
+
+### État complet des smart contracts — TOUS écrits et testés
+- [x] FinBankVault.sol — Vault ERC-4626 sur Morpho Blue
+- [x] FBKToken.sol — Token de gouvernance $FBK (100M cap, Fair Launch)
+- [x] VeFBK.sol — Staking vote-escrowed (modèle Curve veCRV)
+- [x] FBKDistributor.sol — Distribution $FBK proportionnelle aux dépôts
+- [x] FinBankGovernor.sol — Governor on-chain complet avec timelock
+
+### Décisions de conception FBKToken
+- **Cap 100M immuable** : codé en dur dans `MAX_SUPPLY`, aucune fonction pour le modifier
+- **Minter unique** : seul le `FBKDistributor` peut minter → Fair Launch garanti
+- **burnFrom()** : la trésorerie DAO approuve les rachats via allowance standard ERC-20
+- **supplyEmittedBps()** : indicateur de progression du Fair Launch (0 → 10000 bps)
+- **setMinter()** : permet de déployer un Distributor V2 sans changer le token
 
 ### Commandes Foundry
 ```bash
@@ -234,7 +406,7 @@ forge script src/script/Deploy.s.sol --rpc-url $BASE_RPC_URL --broadcast --verif
 | EAS | `0x4200000000000000000000000000000000000021` |
 | FinBankVault | *À déployer* |
 | EASChecker | *À déployer* |
-| $FBK Token | *À écrire + déployer* |
+| $FBK Token | *À déployer* |
 
 ---
 
@@ -256,8 +428,9 @@ forge script src/script/Deploy.s.sol --rpc-url $BASE_RPC_URL --broadcast --verif
 - [x] Définir la couche KYC/AML on-chain → Agnostic Identity Layer (EAS + Privado ID)
 - [x] Spécifier le token de gouvernance → $FBK / $veFBK (Work & Governance, Fair Launch)
 - [x] Définir le flywheel complet
-- [ ] Écrire FBKToken.sol + VeFBK.sol + FBKDistributor.sol
-- [ ] Installer Foundry en local et faire passer les tests
+- [x] Écrire FBKToken.sol (100M cap, Fair Launch, burn) + 33 tests
+- [x] Écrire VeFBK.sol (lock $FBK → $veFBK, modèle Curve veCRV) + 46 tests
+- [x] Installer Foundry en local et faire passer les 94 tests
 - [ ] Récupérer les paramètres du marché Morpho Blue EURC sur Base
 - [ ] Créer le schema KYC sur app.eas.eth
 - [ ] Déployer sur Base Sepolia (testnet)

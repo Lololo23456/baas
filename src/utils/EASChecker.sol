@@ -30,28 +30,28 @@ contract EASChecker {
 
     // ── Storage ───────────────────────────────────────────────────────────────
 
-    /// @notice Contrat EAS déployé sur Base.
+    // @notice Contrat EAS déployé sur Base.
     IEAS public immutable eas;
 
-    /// @notice Schema UID qui définit la structure d'une attestation KYC FinBank.
-    /// @dev Format attendu dans `data` : abi.encode(bool kycPassed, bool amlClear, uint8 tier)
+    // @notice Schema UID qui définit la structure d'une attestation KYC FinBank.
+    // @dev Format attendu dans `data` : abi.encode(bool kycPassed, bool amlClear, uint8 tier)
     bytes32 public kycSchema;
 
-    /// @notice DAO / multisig qui administre le registre des Attestors.
+    // @notice DAO / multisig qui administre le registre des Attestors.
     address public owner;
 
-    /// @notice Attestors agréés par la DAO.
-    /// @dev mapping(attestorAddress => isApproved)
+    // @notice Attestors agréés par la DAO.
+    // @dev mapping(attestorAddress => isApproved)
     mapping(address => bool) public approvedAttestors;
 
-    /// @notice Attestation active par wallet.
-    /// @dev Le wallet soumet son attestation UID une seule fois lors de l'onboarding.
+    // @notice Attestation active par wallet.
+    // @dev Le wallet soumet son attestation UID une seule fois lors de l'onboarding.
     mapping(address => bytes32) public userAttestationUID;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    /// @param _eas Adresse du contrat EAS sur Base.
-    /// @param _kycSchema Schema UID pour les attestations KYC FinBank.
+    // @param _eas Adresse du contrat EAS sur Base.
+    // @param _kycSchema Schema UID pour les attestations KYC FinBank.
     constructor(address _eas, bytes32 _kycSchema) {
         eas    = IEAS(_eas);
         kycSchema = _kycSchema;
@@ -67,39 +67,39 @@ contract EASChecker {
 
     // ── Gouvernance (DAO) ─────────────────────────────────────────────────────
 
-    /// @notice Ajoute un Attestor agréé. Appelable uniquement par la DAO.
+    // @notice Ajoute un Attestor agréé. Appelable uniquement par la DAO.
     function approveAttestor(address attestor) external onlyOwner {
         if (approvedAttestors[attestor]) revert AttestorAlreadyApproved(attestor);
         approvedAttestors[attestor] = true;
         emit AttestorApproved(attestor);
     }
 
-    /// @notice Révoque un Attestor. Les attestations existantes de cet Attestor
-    ///         deviennent immédiatement invalides — les dépôts sont bloqués,
-    ///         mais les retraits restent possibles (censure-résistance).
+    // @notice Révoque un Attestor. Les attestations existantes de cet Attestor
+    //         deviennent immédiatement invalides — les dépôts sont bloqués,
+    //         mais les retraits restent possibles (censure-résistance).
     function revokeAttestor(address attestor) external onlyOwner {
         if (!approvedAttestors[attestor]) revert AttestorNotFound(attestor);
         approvedAttestors[attestor] = false;
         emit AttestorRevoked(attestor);
     }
 
-    /// @notice Met à jour le schema KYC. Vote DAO requis.
+    // @notice Met à jour le schema KYC. Vote DAO requis.
     function updateSchema(bytes32 newSchema) external onlyOwner {
         kycSchema = newSchema;
         emit SchemaUpdated(newSchema);
     }
 
-    /// @notice Transfert de ownership vers la DAO (multisig ou gouvernance on-chain).
+    // @notice Transfert de ownership vers la DAO (multisig ou gouvernance on-chain).
     function transferOwnership(address newOwner) external onlyOwner {
         owner = newOwner;
     }
 
     // ── Onboarding ────────────────────────────────────────────────────────────
 
-    /// @notice Enregistre l'attestation KYC d'un utilisateur.
-    /// @dev L'utilisateur appelle cette fonction une fois avec l'UID de son attestation.
-    ///      L'attestation doit être émise par un Attestor agréé et viser son adresse.
-    /// @param attestationUID UID de l'attestation EAS obtenue via l'Attestor.
+    // @notice Enregistre l'attestation KYC d'un utilisateur.
+    // @dev L'utilisateur appelle cette fonction une fois avec l'UID de son attestation.
+    //      L'attestation doit être émise par un Attestor agréé et viser son adresse.
+    // @param attestationUID UID de l'attestation EAS obtenue via l'Attestor.
     function registerAttestation(bytes32 attestationUID) external {
         // Récupère l'attestation depuis EAS
         Attestation memory att = eas.getAttestation(attestationUID);
@@ -125,11 +125,11 @@ contract EASChecker {
 
     // ── Vérification (appelée par le Vault) ───────────────────────────────────
 
-    /// @notice Vérifie si un wallet est autorisé à déposer dans le Vault.
-    /// @dev Vérifie que l'attestation enregistrée est toujours valide.
-    ///      Cette fonction est appelée par FinBankVault avant chaque dépôt.
-    /// @param user Adresse du wallet à vérifier.
-    /// @return true si le wallet peut déposer.
+    // @notice Vérifie si un wallet est autorisé à déposer dans le Vault.
+    // @dev Vérifie que l'attestation enregistrée est toujours valide.
+    //      Cette fonction est appelée par FinBankVault avant chaque dépôt.
+    // @param user Adresse du wallet à vérifier.
+    // @return true si le wallet peut déposer.
     function isAuthorized(address user) external view returns (bool) {
         bytes32 uid = userAttestationUID[user];
 

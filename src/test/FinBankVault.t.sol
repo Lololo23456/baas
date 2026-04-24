@@ -14,7 +14,7 @@ import {MarketParams} from "../interfaces/IMorpho.sol";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-/// @dev EURC simulé pour les tests.
+// @dev EURC simulé pour les tests.
 contract MockEURC {
     string public name     = "Mock EURC";
     string public symbol   = "EURC";
@@ -50,36 +50,41 @@ contract MockEURC {
     }
 }
 
-/// @dev Morpho Blue simulé : stocke les dépôts et simule le yield.
+interface IERC20Transfer {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+// @dev Morpho Blue simulé : stocke les dépôts et simule le yield.
 contract MockMorpho {
     mapping(address => uint256) public deposited;
     uint256 public yieldRate = 0; // Yield additionnel à simuler
 
     function supply(
-        MarketParams memory,
+        MarketParams memory params,
         uint256 assets,
         uint256,
         address onBehalf,
         bytes memory
     ) external returns (uint256, uint256) {
         deposited[onBehalf] += assets;
+        IERC20Transfer(params.loanToken).transferFrom(msg.sender, address(this), assets);
         return (assets, assets);
     }
 
     function withdraw(
-        MarketParams memory,
+        MarketParams memory params,
         uint256 assets,
         uint256,
         address onBehalf,
         address receiver
     ) external returns (uint256, uint256) {
         deposited[onBehalf] -= assets;
-        // Simule le transfert vers le receiver
-        // (dans les vrais tests, on mock le transfert EURC aussi)
+        IERC20Transfer(params.loanToken).transfer(receiver, assets);
         return (assets, assets);
     }
 
-    /// @dev Simule l'accrual de yield (appeler depuis les tests).
+    // @dev Simule l'accrual de yield (appeler depuis les tests).
     function simulateYield(address vault, uint256 additionalAssets) external {
         deposited[vault] += additionalAssets;
     }
@@ -98,7 +103,7 @@ contract MockMorpho {
     function accrueInterest(MarketParams memory) external {}
 }
 
-/// @dev EAS simulé : stocke des attestations factices.
+// @dev EAS simulé : stocke des attestations factices.
 contract MockEAS {
     struct MockAttestation {
         bytes32 uid;
@@ -270,9 +275,6 @@ contract FinBankVaultTest is Test {
         vm.prank(ALICE);
         uint256 shares = vault.deposit(depositAmount, ALICE);
 
-        // Mock : le vault a les EURC après retrait de Morpho
-        eurc.mint(address(vault), depositAmount);
-
         vm.prank(ALICE);
         uint256 assets = vault.redeem(shares, ALICE, ALICE);
 
@@ -285,8 +287,6 @@ contract FinBankVaultTest is Test {
         // Simule: on lui donne des shares directement (cas migration)
         vm.prank(ALICE);
         vault.deposit(100_000e6, CHARLIE); // Alice dépose pour Charlie
-
-        eurc.mint(address(vault), 100_000e6);
 
         // Charlie PEUT retirer même sans KYC — censure-résistance
         uint256 charlieShares = vault.balanceOf(CHARLIE);
@@ -396,7 +396,6 @@ contract FinBankVaultTest is Test {
         assertGt(vault.balanceOf(TREASURY), 0, "Treasury received fees");
 
         // 5. Alice retire tout (sans vérification KYC — censure-résistance)
-        eurc.mint(address(vault), 5_100e6); // Simule le retrait Morpho
         uint256 aliceShares = vault.balanceOf(ALICE);
         vm.prank(ALICE);
         uint256 aliceReceived = vault.redeem(aliceShares, ALICE, ALICE);

@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(forge --version)"
+      "Bash(forge --version)",
+      "Bash(python3 -c \"import reportlab; print\\('reportlab version:', reportlab.Version\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(fc-list)",
+      "Bash(python3 generate_finbank_pdf.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(~/.foundry/bin/forge test *)",
+      "Bash(~/.foundry/bin/forge build *)",
+      "Bash(~/.foundry/bin/forge clean *)",
+      "Bash(find /Users/loic/Desktop/BAAS/src -name \"*.sol\" -exec sed -i '' 's/^\\\\/\\\\/\\\\//\\\\/\\\\//g; s/^    \\\\/\\\\/\\\\//    \\\\/\\\\//g; s/^        \\\\/\\\\/\\\\//        \\\\/\\\\//g' {} \\\\;)",
+      "Bash(forge test *)"
     ]
   }
 }

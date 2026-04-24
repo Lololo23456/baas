@@ -50,26 +50,35 @@ Fusionner deux modèles :
 
 ## Smart Contracts — État actuel
 
-### Écrits et testés
+### Écrits et testés — COMPLET
 ```
 src/
-├── FinBankVault.sol          — Vault ERC-4626 principal (474 lignes)
+├── FinBankVault.sol          — Vault ERC-4626 + hooks distributor (490 lignes)
+├── FBKToken.sol              — Token de gouvernance $FBK (160 lignes)
+├── VeFBK.sol                 — Vote-Escrowed FBK, modele Curve veCRV (210 lignes)
+├── FBKDistributor.sol        — Distribution $FBK, pattern Synthetix (165 lignes)
+├── FinBankGovernor.sol       — Governor on-chain complet avec timelock (270 lignes)
 ├── interfaces/
 │   ├── IMorpho.sol           — Interface Morpho Blue
 │   └── IEAS.sol              — Interface EAS
 ├── utils/
 │   └── EASChecker.sol        — Vérificateur d'attestations KYC (151 lignes)
 ├── test/
-│   └── FinBankVault.t.sol    — 12 tests Foundry
+│   ├── FinBankVault.t.sol    — 15 tests Foundry (Vault)
+│   ├── FBKToken.t.sol        — 33 tests Foundry (Token)
+│   ├── VeFBK.t.sol           — 46 tests Foundry (veFBK)
+│   ├── FBKDistributor.t.sol  — 33 tests Foundry (Distributor)
+│   └── FinBankGovernor.t.sol — 42 tests Foundry (Governor)
 └── script/
     └── Deploy.s.sol          — Script de déploiement Base mainnet
 ```
 
-### À écrire (prochaine session)
-- `FBKToken.sol` — ERC-20 token de gouvernance $FBK
-- `VeFBK.sol` — Staking + vote-escrowed ($veFBK)
-- `FBKDistributor.sol` — Distribution $FBK par usage
-- `FinBankGovernor.sol` — Governor on-chain
+**169 tests — 0 echec**
+
+### Prochaines etapes
+- Mettre a jour Deploy.s.sol pour inclure VeFBK, FBKDistributor et FinBankGovernor
+- Deployer sur Base Sepolia (testnet)
+- Audit de securite externe avant mainnet
 
 ### Commandes Foundry
 ```bash
@@ -77,8 +86,8 @@ src/
 curl -L https://foundry.paradigm.xyz | bash && foundryup
 forge install foundry-rs/forge-std
 
-# Tests
-forge test --match-contract FinBankVaultTest -vvv
+# Tous les tests
+forge test -vvv
 
 # Déploiement testnet
 forge script src/script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
@@ -198,4 +207,4 @@ forge script src/script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
 
 **Phase actuelle** : Phase 1 — Smart Contracts & Testnet
 **Dernière mise à jour** : 2026-04-24
-**Prochaine étape** : Écrire FBKToken.sol + VeFBK.sol + FBKDistributor.sol, puis déployer sur Base Sepolia
+**Prochaine étape** : Écrire VeFBK.sol + FBKDistributor.sol + FinBankGovernor.sol, puis déployer sur Base Sepolia
