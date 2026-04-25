@@ -1,0 +1,418 @@
+import Link from 'next/link'
+import LiveProofCard from '@/components/bank/LiveProofCard'
+
+export default function Home() {
+  return (
+    <main style={{ fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
+
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <section style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '120px 24px 80px',
+        background: '#FFFFFF',
+      }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 80,
+            alignItems: 'center',
+          }}>
+
+            {/* Left — Manifesto */}
+            <div>
+              <div className="pill animate-fade-up" style={{ marginBottom: 32 }}>
+                <span className="live-dot" />
+                Live on Base Sepolia
+              </div>
+
+              <h1 className="display animate-fade-up delay-1" style={{
+                fontSize: 'clamp(40px, 4.5vw, 58px)',
+                color: '#0F172A',
+                marginBottom: 28,
+                maxWidth: 540,
+              }}>
+                Your bank can close<br />
+                your account tomorrow.<br />
+                <span style={{ color: '#94A3B8' }}>FinBank cannot.</span>
+              </h1>
+
+              <p className="animate-fade-up delay-2" style={{
+                fontSize: 17,
+                color: '#64748B',
+                lineHeight: 1.7,
+                marginBottom: 40,
+                maxWidth: 480,
+              }}>
+                The first financial institution built on three unbreakable
+                principles: total transparency, collective ownership, and a
+                foundation that no one can alter — not even us.
+              </p>
+
+              <div className="animate-fade-up delay-3" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <Link href="/app" className="btn btn-dark" style={{ fontSize: 14, padding: '14px 28px' }}>
+                  Open App
+                </Link>
+                <a href="#how-it-works" className="btn btn-outline" style={{ fontSize: 14, padding: '14px 28px' }}>
+                  How it works
+                </a>
+              </div>
+
+              {/* Trust signals */}
+              <div className="animate-fade-up delay-4" style={{
+                display: 'flex',
+                gap: 32,
+                marginTop: 56,
+                paddingTop: 32,
+                borderTop: '1px solid #E2E8F0',
+              }}>
+                {[
+                  { value: '6', label: 'Auditable contracts' },
+                  { value: '169', label: 'Automated tests' },
+                  { value: '0', label: 'Failures' },
+                ].map(({ value, label }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 28, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {value}
+                    </p>
+                    <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 4, fontWeight: 500 }}>{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — Live proof */}
+            <div className="animate-fade-up delay-2">
+              <LiveProofCard />
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── Three Pillars ────────────────────────────────────── */}
+      <section style={{ background: '#F8FAFC', padding: '96px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+          <div style={{ marginBottom: 64, maxWidth: 560 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+              Three principles
+            </p>
+            <h2 className="display" style={{ fontSize: 'clamp(28px, 3vw, 40px)', color: '#0F172A' }}>
+              Banking rebuilt from<br />first principles
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+
+            {/* Pillar 1 */}
+            <div style={{
+              background: '#0F172A',
+              borderRadius: '20px 0 0 20px',
+              padding: '44px 36px',
+              color: '#FFFFFF',
+            }}>
+              <div style={{
+                width: 40, height: 40,
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 28,
+                fontSize: 18,
+              }}>
+                I
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>
+                Total Transparency
+              </h3>
+              <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, marginBottom: 24 }}>
+                Every euro deposited, every fraction of yield, every rule is
+                recorded on a public blockchain — verifiable by anyone, in
+                real time.
+              </p>
+              <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                Not an annual report. Reality, readable in code.
+              </p>
+            </div>
+
+            {/* Pillar 2 */}
+            <div style={{
+              background: '#0F172A',
+              padding: '44px 36px',
+              color: '#FFFFFF',
+              borderLeft: '1px solid rgba(255,255,255,0.06)',
+              borderRight: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <div style={{
+                width: 40, height: 40,
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 28,
+                fontSize: 18,
+              }}>
+                II
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>
+                Collective Ownership
+              </h3>
+              <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, marginBottom: 24 }}>
+                $FBK is a cooperative share, not an investment. Distributed
+                freely to users through usage. The DAO is a general assembly
+                that actually works.
+              </p>
+              <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                Votes executed automatically by code, without intermediaries.
+              </p>
+            </div>
+
+            {/* Pillar 3 */}
+            <div style={{
+              background: '#0F172A',
+              borderRadius: '0 20px 20px 0',
+              padding: '44px 36px',
+              color: '#FFFFFF',
+            }}>
+              <div style={{
+                width: 40, height: 40,
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.08)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 28,
+                fontSize: 18,
+              }}>
+                III
+              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>
+                Unbreakable Foundations
+              </h3>
+              <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, marginBottom: 24 }}>
+                Withdrawals are technically impossible to block — written in
+                immutable code. Trust is in the protocol, not in people.
+              </p>
+              <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                Same principles as cooperatives. Better tools.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ────────────────────────────────────── */}
+      <section id="how-it-works" style={{ background: '#FFFFFF', padding: '96px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+          <div style={{ marginBottom: 64, maxWidth: 560 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+              How it works
+            </p>
+            <h2 className="display" style={{ fontSize: 'clamp(28px, 3vw, 40px)', color: '#0F172A' }}>
+              As simple as a banking app.<br />
+              <span style={{ color: '#94A3B8' }}>As transparent as a blockchain.</span>
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
+            {[
+              {
+                step: '01',
+                title: 'Connect with Face ID',
+                desc: 'No seed phrase. No password. Your phone\'s biometric is your key — powered by Base Smart Wallet.',
+              },
+              {
+                step: '02',
+                title: 'Deposit via IBAN',
+                desc: 'Wire from your existing bank to your personal IBAN. EUR is instantly converted to EURC on-chain.',
+              },
+              {
+                step: '03',
+                title: 'Your money works',
+                desc: 'Your funds generate yield through audited DeFi protocols. Withdraw anytime. Nothing is locked.',
+              },
+            ].map(({ step, title, desc }) => (
+              <div key={step} className="card" style={{ padding: '36px 32px' }}>
+                <p style={{
+                  fontSize: 11, fontWeight: 700, color: '#CBD5E1',
+                  letterSpacing: '0.08em', marginBottom: 20,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {step}
+                </p>
+                <h3 style={{ fontSize: 17, fontWeight: 600, color: '#0F172A', marginBottom: 12, letterSpacing: '-0.01em' }}>
+                  {title}
+                </h3>
+                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.7 }}>
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison table ─────────────────────────────────── */}
+      <section style={{ background: '#F8FAFC', padding: '96px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+
+          <div style={{ marginBottom: 48, maxWidth: 560 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+              Comparison
+            </p>
+            <h2 className="display" style={{ fontSize: 'clamp(28px, 3vw, 40px)', color: '#0F172A' }}>
+              Not a better bank.<br />A different institution.
+            </h2>
+          </div>
+
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
+                  <th scope="col" style={{ padding: '16px 24px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.04em' }}>
+                    Criteria
+                  </th>
+                  {['Traditional bank', 'Neobank', 'FinBank'].map((col, i) => (
+                    <th
+                      key={col}
+                      scope="col"
+                      style={{
+                        padding: '16px 24px',
+                        textAlign: 'center',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: i === 2 ? '#0F172A' : '#94A3B8',
+                        letterSpacing: '0.04em',
+                        background: i === 2 ? '#F1F5F9' : 'transparent',
+                      }}
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Account closure risk', 'High', 'Medium', 'None — code cannot close'],
+                  ['Transaction speed', '1–3 days', 'Near-instant', 'Instant (blockchain)'],
+                  ['Governance', 'Opaque', 'Opaque', 'Transparent, on-chain'],
+                  ['Ownership', 'Shareholders', 'Shareholders', 'Member users ($FBK)'],
+                  ['Rules modifiable by management', 'Yes', 'Yes', 'No — DAO vote required'],
+                  ['Audit', 'Annual report', 'Annual report', 'Real-time, public'],
+                ].map(([criteria, trad, neo, fb], i) => (
+                  <tr
+                    key={criteria}
+                    style={{ borderBottom: i < 5 ? '1px solid #F1F5F9' : 'none' }}
+                  >
+                    <th scope="row" style={{ padding: '16px 24px', fontSize: 13, color: '#64748B', fontWeight: 500, textAlign: 'left' }}>
+                      {criteria}
+                    </th>
+                    <td style={{ padding: '16px 24px', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>
+                      {trad}
+                    </td>
+                    <td style={{ padding: '16px 24px', textAlign: 'center', fontSize: 13, color: '#94A3B8' }}>
+                      {neo}
+                    </td>
+                    <td style={{ padding: '16px 24px', textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#0F172A', background: '#F8FAFC' }}>
+                      {fb}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ─────────────────────────────────────────────── */}
+      <section style={{ background: '#0F172A', padding: '96px 24px' }}>
+        <div style={{
+          maxWidth: 600,
+          margin: '0 auto',
+          textAlign: 'center',
+        }}>
+          <h2 className="display" style={{
+            fontSize: 'clamp(32px, 4vw, 48px)',
+            color: '#FFFFFF',
+            marginBottom: 20,
+          }}>
+            The code is live.<br />Verify it yourself.
+          </h2>
+          <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.7, marginBottom: 40 }}>
+            Every rule, every balance, every constraint is on a public
+            blockchain. Open the app, or read the contracts directly on Basescan.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/app" className="btn btn-dark" style={{
+              background: '#FFFFFF',
+              color: '#0F172A',
+              fontSize: 14,
+              padding: '14px 28px',
+            }}>
+              Open App
+            </Link>
+            <a
+              href="https://sepolia.basescan.org/address/0x5C763aA7536BF5D67155553BD709Ca66187CDfDd"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline"
+              style={{ color: '#64748B', borderColor: 'rgba(255,255,255,0.12)', fontSize: 14, padding: '14px 28px' }}
+            >
+              Read the contract ↗
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────── */}
+      <footer style={{
+        background: '#0F172A',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: '40px 24px',
+      }}>
+        <div style={{
+          maxWidth: 1100,
+          margin: '0 auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 7,
+              background: 'rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>FB</span>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>FinBank</span>
+          </div>
+          <p style={{ fontSize: 12, color: '#334155' }}>
+            Testnet — Base Sepolia · Not financial advice
+          </p>
+          <div style={{ display: 'flex', gap: 20 }}>
+            {[
+              { label: 'Contracts', href: 'https://sepolia.basescan.org/address/0x5C763aA7536BF5D67155553BD709Ca66187CDfDd' },
+              { label: 'GitHub', href: '#' },
+              { label: 'Governance', href: '/governance' },
+            ].map(({ label, href }) => (
+              <a
+                key={label}
+                href={href}
+                target={href.startsWith('http') ? '_blank' : undefined}
+                rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                style={{ fontSize: 12, color: '#475569', textDecoration: 'none' }}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </footer>
+
+    </main>
+  )
+}

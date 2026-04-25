@@ -72,6 +72,7 @@ contract FBKToken {
     // ── ERC-20 Standard ───────────────────────────────────────────────────────
 
     function transfer(address to, uint256 amount) external returns (bool) {
+        if (to == address(0)) revert ZeroAddress();
         if (balanceOf[msg.sender] < amount)
             revert InsufficientBalance(amount, balanceOf[msg.sender]);
 

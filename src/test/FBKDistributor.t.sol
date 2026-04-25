@@ -270,12 +270,14 @@ contract FBKDistributorTest is Test {
         vm.prank(VAULT);
         dist.notifyDeposit(ALICE, 1_000e6);
 
-        vm.warp(block.timestamp + 100);
+        // Timestamps absolus : via_ir re-lit TIMESTAMP opcode apres chaque warp,
+        // donc block.timestamp + 100 donnerait le meme resultat au second appel.
+        vm.warp(101);
         vm.prank(ALICE);
         dist.claim();
         uint256 firstClaim = fbk.balanceOf(ALICE);
 
-        vm.warp(block.timestamp + 100);
+        vm.warp(201);
         vm.prank(ALICE);
         dist.claim();
         uint256 totalClaimed = fbk.balanceOf(ALICE);
@@ -362,19 +364,20 @@ contract FBKDistributorTest is Test {
     // ── Scenario complet ──────────────────────────────────────────────────────
 
     function test_scenario_twoUsersDepositClaimWithdraw() public {
-        uint256 t0 = block.timestamp;
+        // Timestamps absolus (block.timestamp de Foundry demarre a 1).
+        // via_ir cause le re-lecture du TIMESTAMP opcode apres chaque warp.
 
-        // t=0 : Alice depose 1000 shares
+        // t=1 (debut) : Alice depose 1000 shares
         vm.prank(VAULT);
         dist.notifyDeposit(ALICE, 1_000e6);
 
-        // t=100 : Bob depose 1000 shares (meme montant)
-        vm.warp(t0 + 100);
+        // t=101 : Bob depose 1000 shares (meme montant)
+        vm.warp(101);
         vm.prank(VAULT);
         dist.notifyDeposit(BOB, 1_000e6);
 
-        // t=200 : les deux ont eu 100s chacun (Alice seule 100s, puis 50/50 100s)
-        vm.warp(t0 + 200);
+        // t=201 : Alice seule 100s, puis 50/50 100s
+        vm.warp(201);
 
         // Alice : 100s * 1 FBK/s * 100% + 100s * 1 FBK/s * 50% = 100 + 50 = 150 FBK
         // Bob   : 100s * 1 FBK/s * 50% = 50 FBK
@@ -398,27 +401,28 @@ contract FBKDistributorTest is Test {
         vm.prank(VAULT);
         dist.notifyWithdraw(ALICE, 1_000e6);
 
-        // t=300 : Bob accumule seul pendant 100s de plus
-        vm.warp(t0 + 300);
+        // t=301 : Bob accumule seul pendant 100s de plus
+        vm.warp(301);
 
         assertApproxEqAbs(dist.earned(BOB), 100 * 1e18, 1e12, "Bob alone for 100s = 100 FBK");
         assertEq(dist.earned(ALICE), 0, "Alice has no shares, no accumulation");
     }
 
     function test_scenario_rateChangeInMidFlight() public {
-        uint256 t0 = block.timestamp;
-
+        // Timestamps absolus (block.timestamp de Foundry demarre a 1).
+        // via_ir cause le re-lecture du TIMESTAMP opcode : t0 + 200 serait
+        // evalue comme (block.timestamp_actuel) + 200 apres le premier warp.
         vm.prank(VAULT);
         dist.notifyDeposit(ALICE, 1_000e6);
 
         // 100s a 1 FBK/s → 100 FBK
-        vm.warp(t0 + 100);
+        vm.warp(101);
 
         vm.prank(DAO);
         dist.setRewardRate(2e18); // Double le taux
 
         // 100s a 2 FBK/s → 200 FBK supplementaires
-        vm.warp(t0 + 200);
+        vm.warp(201);
 
         uint256 e = dist.earned(ALICE);
         assertApproxEqAbs(e, 300 * 1e18, 1e12, "100 FBK + 200 FBK = 300 FBK total");

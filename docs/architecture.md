@@ -1,6 +1,17 @@
 # Architecture Technique — FinBank
 
-> Dernière mise à jour : 2026-04-24
+> Dernière mise à jour : 2026-04-25
+
+---
+
+## Principe directeur
+
+**La technologie n'est pas le projet. La technologie rend le projet possible.**
+
+Chaque choix architectural sert l'un des trois piliers de la vision :
+- **Transparence totale** → blockchain publique, code open-source, tout vérifiable en temps réel
+- **Propriété collective** → $FBK distribué par usage, DAO auto-exécutante, profits aux membres
+- **Refondation des bases** → retraits techniquement inbloquables, réserves vérifiables, confiance dans le code pas dans les hommes
 
 ---
 
@@ -141,13 +152,16 @@ Attestor agréé (Synaps, Fractal ID...)
 
 ---
 
-## Module 5 — Gouvernance
+## Module 5 — Gouvernance coopérative
 
-### Token $FBK
-- Token de gouvernance FinBank
-- **Fair Launch** : pas de pré-vente VC — distribution par usage du protocole
-- Distribution basée sur : volume de yield généré + ancienneté sur le protocole
+### Token $FBK — La part coopérative
+
+$FBK n'est pas un investissement spéculatif. C'est l'équivalent numérique d'une part coopérative : il confère la co-propriété du protocole à ceux qui l'utilisent.
+
+- **Fair Launch** : pas de pré-vente VC — distribution exclusive par usage du protocole
+- Distribution basée sur : volume de yield généré × ancienneté sur le protocole
 - Chaque freelance utilisateur devient progressivement co-propriétaire
+- Les profits de trésorerie (15% du yield) financent le buy-back & burn $FBK — enrichissent les membres, pas des actionnaires extérieurs
 
 ### Mécanisme $veFBK (vote-escrowed, modèle Curve veCRV)
 - Lock $FBK pour une durée déterminée → obtention de $veFBK
@@ -155,16 +169,28 @@ Attestor agréé (Synaps, Fractal ID...)
 - $veFBK donne : pouvoir de vote proportionnel + part majorée du yield de trésorerie
 - ⚠️ Risque "Curve Wars" à adresser : mécanisme anti-concentration à prévoir
 
-### Pouvoirs de la DAO
+### La DAO — L'assemblée générale qui fonctionne vraiment
+
+La DAO est l'équivalent d'une assemblée générale de coopérative — mais avec une différence fondamentale : les décisions sont exécutées automatiquement par le code, sans intermédiaire.
+
+Dans une coopérative traditionnelle, les membres votent mais la direction décide réellement. Dans FinBank, le vote est l'exécution.
+
+**Pouvoirs de la DAO :**
 - Allocation du Vault : ajouter/retirer des marchés Morpho (`migrateMarket()`)
 - Registre des Attestors KYC (`approveAttestor()` / `revokeAttestor()`)
 - Paramètres de frais : 0-30% du yield (`setFee()`)
 - Trésorerie : adresse du Safe (`setTreasury()`)
 - Répartition Buy-back vs fonds d'assurance
+- Auto-amendable : les paramètres du Governor lui-même ne peuvent être changés que par vote DAO
 
-### Multisig (urgences)
+### Ce que la DAO ne peut PAS faire
+
+**Les retraits ne peuvent jamais être bloqués.** Cette propriété est codée en dur dans le smart contract, immuable. Même si la DAO le votait, le code l'interdirait. C'est la garantie fondamentale : personne — ni la DAO, ni une autorité extérieure passant par la DAO — ne peut bloquer l'accès d'un membre à ses fonds.
+
+### Multisig (urgences techniques uniquement)
 - Gnosis Safe pour les actions critiques nécessitant une réponse rapide
-- Pause du vault en cas d'exploit d'un protocole tiers
+- Périmètre limité : pause du vault en cas d'exploit d'un protocole tiers
+- Ne peut pas modifier les paramètres core (frais, Attestors, marchés) — ce sont des pouvoirs DAO exclusifs
 
 ---
 

@@ -65,6 +65,8 @@ contract FinBankVault {
     error NotOwner();
     error NotAuthorized(address user);      // Pas d'attestation KYC valide
     error ZeroAmount();
+    error ZeroAddress();
+    error Reentrancy();
     error ExceedsBalance(uint256 requested, uint256 available);
     error FeeTooHigh(uint256 feeBps, uint256 maxFeeBps);
     error ZeroShares();
@@ -91,6 +93,8 @@ contract FinBankVault {
     event MarketUpdated(bytes32 oldMarketId, bytes32 newMarketId);
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
+    event DistributorUpdated(address indexed oldDistributor, address indexed newDistributor);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
     // ── ERC-4626 / ERC-20 Storage ─────────────────────────────────────────────
 
@@ -142,6 +146,9 @@ contract FinBankVault {
     // @dev Optionnel : si address(0), les hooks sont silencieux.
     address public distributor;
 
+    // Reentrancy guard (1 = unlocked, 2 = locked).
+    uint256 private _locked = 1;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     // @param _asset     Adresse de l'EURC sur Base.
@@ -177,6 +184,13 @@ contract FinBankVault {
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
         _;
+    }
+
+    modifier nonReentrant() {
+        if (_locked != 1) revert Reentrancy();
+        _locked = 2;
+        _;
+        _locked = 1;
     }
 
     // ── ERC-4626 Core ─────────────────────────────────────────────────────────
@@ -244,8 +258,9 @@ contract FinBankVault {
     // @param assets  Montant d'EURC à déposer.
     // @param receiver Adresse qui recevra les shares (généralement msg.sender).
     // @return shares Nombre de shares fbEURC émises.
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) external nonReentrant returns (uint256 shares) {
         if (assets == 0) revert ZeroAmount();
+        if (receiver == address(0)) revert ZeroAddress();
 
         // 1. Vérification KYC — bloque les dépôts sans attestation valide
         //    (les retraits ne sont jamais bloqués — voir withdraw())
@@ -291,15 +306,19 @@ contract FinBankVault {
         uint256 shares,
         address receiver,
         address owner_
-    ) external returns (uint256 assets) {
+    ) external nonReentrant returns (uint256 assets) {
         if (shares == 0) revert ZeroAmount();
+        if (receiver == address(0)) revert ZeroAddress();
         if (shares > balanceOf[owner_]) revert ExceedsBalance(shares, balanceOf[owner_]);
 
         // Vérifie les allowances si l'appelant n'est pas le propriétaire des shares
         if (msg.sender != owner_) {
             uint256 allowed = allowance[owner_][msg.sender];
-            if (allowed != type(uint256).max) {
-                require(allowed >= shares, "ERC4626: insufficient allowance");
+            if (allowed == type(uint256).max) {
+                // infinite approval — pas de déduction
+            } else if (allowed < shares) {
+                revert ExceedsBalance(shares, allowed);
+            } else {
                 allowance[owner_][msg.sender] = allowed - shares;
             }
         }
@@ -387,6 +406,7 @@ contract FinBankVault {
 
     // @notice Met à jour l'adresse de la trésorerie.
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert ZeroAddress();
         emit TreasuryUpdated(treasury, newTreasury);
         treasury = newTreasury;
     }
@@ -421,20 +441,27 @@ contract FinBankVault {
     // @notice Configure le FBKDistributor (vote DAO requis).
     // @dev Passer address(0) pour desactiver les hooks de distribution.
     function setDistributor(address newDistributor) external onlyOwner {
+        emit DistributorUpdated(distributor, newDistributor);
         distributor = newDistributor;
     }
 
     // @notice Transfert du ownership vers la DAO on-chain.
     function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
 
     // ── ERC-20 Standard ───────────────────────────────────────────────────────
 
     function transfer(address to, uint256 amount) external returns (bool) {
+        if (to == address(0)) revert ZeroAddress();
+        if (balanceOf[msg.sender] < amount)
+            revert ExceedsBalance(amount, balanceOf[msg.sender]);
         balanceOf[msg.sender] -= amount;
         balanceOf[to]         += amount;
         emit Transfer(msg.sender, to, amount);
+        _notifyTransfer(msg.sender, to, amount);
         return true;
     }
 
@@ -445,16 +472,30 @@ contract FinBankVault {
     }
 
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        if (allowance[from][msg.sender] != type(uint256).max) {
-            allowance[from][msg.sender] -= amount;
+        if (to == address(0)) revert ZeroAddress();
+        uint256 allowed = allowance[from][msg.sender];
+        if (allowed != type(uint256).max) {
+            if (allowed < amount) revert ExceedsBalance(amount, allowed);
+            allowance[from][msg.sender] = allowed - amount;
         }
+        if (balanceOf[from] < amount)
+            revert ExceedsBalance(amount, balanceOf[from]);
         balanceOf[from] -= amount;
         balanceOf[to]   += amount;
         emit Transfer(from, to, amount);
+        _notifyTransfer(from, to, amount);
         return true;
     }
 
     // ── Internal Helpers ──────────────────────────────────────────────────────
+
+    // Synchronise le distributor lors d'un transfert direct de shares.
+    function _notifyTransfer(address from, address to, uint256 shares) internal {
+        address d = distributor;
+        if (d == address(0)) return;
+        IFBKDistributor(d).notifyWithdraw(from, shares);
+        IFBKDistributor(d).notifyDeposit(to, shares);
+    }
 
     function _mint(address to, uint256 shares) internal {
         totalSupply   += shares;

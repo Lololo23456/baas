@@ -11,15 +11,27 @@ Tu combines expertise technique (blockchain, DeFi, smart contracts, architecture
 ## Contexte du projet
 
 ### Vision
-Créer une banque en ligne qui attaque le problème de fond du système bancaire actuel :
-- **La lenteur** des transactions (virements en 1-3 jours sur des rails des années 70-80)
-- **Le contrôle arbitraire** : des banques qui décident unilatéralement de bloquer, fermer ou refuser des comptes sans justification claire
-- **L'asymétrie de pouvoir** entre l'institution et le client
+**"La première institution financière de l'ère numérique construite sur les bons principes depuis le début."**
 
-### Approche
-Fusionner deux modèles :
-1. **Finance décentralisée (DeFi)** — infrastructure blockchain pour que personne ne puisse bloquer l'accès à l'argent d'un utilisateur
-2. **Banque coopérative éthique** — gouvernance transparente où les membres sont propriétaires et votent sur les règles
+**"Ta banque actuelle peut fermer ton compte demain matin, prêter ton argent sans te le dire, et prendre des décisions dans l'intérêt de ses actionnaires. FinBank ne peut faire aucune de ces trois choses."**
+
+FinBank repose sur trois piliers indissociables :
+
+**1. Transparence totale**
+Chaque euro déposé, chaque fraction de yield, chaque commission est enregistrée sur une blockchain publique — vérifiable par n'importe qui, en temps réel. Pas un rapport annuel. La réalité, lisible dans le code.
+
+**2. Propriété collective**
+$FBK est une part coopérative, pas un investissement. Distribué gratuitement aux utilisateurs par l'usage. La DAO est l'assemblée générale qui fonctionne vraiment — votes exécutés automatiquement par le code, sans intermédiaire.
+
+**3. Refondation des bases**
+Les mêmes principes que les banques coopératives (Crédit Mutuel, Credit Agricole à l'origine), avec les outils qui les rendent enfin inviolables. Les retraits sont techniquement impossibles à bloquer — codé en dur, immuable. La confiance est dans le code, pas dans les hommes.
+
+### Différenciation clé vs banques coopératives traditionnelles
+- Gouvernance réelle (on-chain, auto-exécutée) vs symbolique (AG annuelle que personne ne fréquente)
+- Transparence temps réel (blockchain) vs rapport annuel de 400 pages
+- Retraits inbloquables (code immuable) vs soumis aux décisions de direction / autorités
+- Portée mondiale vs géographiquement limitée
+- "Mêmes principes, meilleurs outils"
 
 ### Segment cible initial
 **Freelances et travailleurs indépendants** — un segment systématiquement mal servi par les banques traditionnelles :
@@ -31,7 +43,7 @@ Fusionner deux modèles :
 
 ---
 
-## Décisions architecturales actées (2026-04-24)
+## Décisions architecturales actées (2026-04-25)
 
 | Brique | Décision | Raison |
 |---|---|---|
@@ -48,49 +60,107 @@ Fusionner deux modèles :
 
 ---
 
-## Smart Contracts — État actuel
+## Smart Contracts — COMPLET ✅
 
-### Écrits et testés — COMPLET
 ```
 src/
-├── FinBankVault.sol          — Vault ERC-4626 + hooks distributor (490 lignes)
-├── FBKToken.sol              — Token de gouvernance $FBK (160 lignes)
-├── VeFBK.sol                 — Vote-Escrowed FBK, modele Curve veCRV (210 lignes)
-├── FBKDistributor.sol        — Distribution $FBK, pattern Synthetix (165 lignes)
-├── FinBankGovernor.sol       — Governor on-chain complet avec timelock (270 lignes)
+├── FinBankVault.sol          — Vault ERC-4626 + hooks distributor
+├── FBKToken.sol              — Token de gouvernance $FBK (ERC-20)
+├── VeFBK.sol                 — Vote-Escrowed FBK, modèle Curve veCRV
+├── FBKDistributor.sol        — Distribution $FBK, pattern Synthetix
+├── FinBankGovernor.sol       — Governor on-chain avec timelock intégré
 ├── interfaces/
 │   ├── IMorpho.sol           — Interface Morpho Blue
 │   └── IEAS.sol              — Interface EAS
 ├── utils/
-│   └── EASChecker.sol        — Vérificateur d'attestations KYC (151 lignes)
+│   └── EASChecker.sol        — Vérificateur d'attestations KYC
+├── mocks/
+│   ├── MockERC20.sol         — Faux EURC pour tests Sepolia (mint libre)
+│   └── MockMorpho.sol        — Faux Morpho Blue (supply/withdraw/addYield)
 ├── test/
-│   ├── FinBankVault.t.sol    — 15 tests Foundry (Vault)
-│   ├── FBKToken.t.sol        — 33 tests Foundry (Token)
-│   ├── VeFBK.t.sol           — 46 tests Foundry (veFBK)
-│   ├── FBKDistributor.t.sol  — 33 tests Foundry (Distributor)
-│   └── FinBankGovernor.t.sol — 42 tests Foundry (Governor)
+│   ├── FinBankVault.t.sol    — 15 tests Foundry
+│   ├── FBKToken.t.sol        — 33 tests Foundry
+│   ├── VeFBK.t.sol           — 46 tests Foundry
+│   ├── FBKDistributor.t.sol  — 33 tests Foundry
+│   └── FinBankGovernor.t.sol — 42 tests Foundry
 └── script/
-    └── Deploy.s.sol          — Script de déploiement Base mainnet
+    └── Deploy.s.sol          — Déploiement complet (détecte Mainnet/Sepolia via chainId)
 ```
 
-**169 tests — 0 echec**
+**169 tests — 0 échec**
 
-### Prochaines etapes
-- Mettre a jour Deploy.s.sol pour inclure VeFBK, FBKDistributor et FinBankGovernor
-- Deployer sur Base Sepolia (testnet)
-- Audit de securite externe avant mainnet
+### Fixes de sécurité appliqués
+- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred
+- **VeFBK** : vérification overflow uint128 avant tout cast
+- **FBKDistributor** : MAX_REWARD_RATE = 165e18 (plafond 7 jours min), notifyWithdraw clampé, event OwnershipTransferred
+- **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event
+- **FBKToken** : zero-address check dans transfer()
+- **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`)
 
 ### Commandes Foundry
 ```bash
-# Setup
-curl -L https://foundry.paradigm.xyz | bash && foundryup
-forge install foundry-rs/forge-std
-
 # Tous les tests
 forge test -vvv
 
-# Déploiement testnet
-forge script src/script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
+# Déploiement Sepolia (MockERC20 + MockMorpho auto-déployés)
+forge script src/script/Deploy.s.sol \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --private-key $DEPLOYER_PK \
+  --broadcast
+
+# Déploiement Mainnet
+forge script src/script/Deploy.s.sol \
+  --rpc-url $BASE_RPC_URL \
+  --private-key $DEPLOYER_PK \
+  --broadcast --verify --etherscan-api-key $BASESCAN_API_KEY
+```
+
+## Backend Off-Chain — COMPLET ✅
+
+```
+backend/
+├── src/
+│   ├── index.ts              — Point d'entrée (API + indexeur dans un process)
+│   ├── config/index.ts       — Validation env vars (zod)
+│   ├── db/client.ts          — Prisma client
+│   ├── blockchain/
+│   │   ├── client.ts         — viem publicClient (Base Sepolia/Mainnet)
+│   │   ├── contracts.ts      — Instances Vault, Distributor, VeFBK, Governor
+│   │   └── abis/             — ABIs des 4 contrats (events + read functions)
+│   ├── indexer/
+│   │   ├── vault.ts          — Deposit, Withdraw events → DB
+│   │   ├── distributor.ts    — Claimed events → DB
+│   │   ├── veFBK.ts          — LockCreated/Increased/Extended/Withdrawn → DB
+│   │   └── governor.ts       — ProposalCreated, VoteCast, Executed, Canceled → DB
+│   └── api/routes/
+│       ├── user.ts           — GET /user/:address, /history, /votes
+│       ├── vault.ts          — GET /vault, /vault/history
+│       └── proposals.ts      — GET /proposals, /proposals/:id
+├── prisma/schema.prisma      — PostgreSQL : Deposit, Withdrawal, Claim, Lock, Proposal, Vote
+└── .env.example              — Template (RPC_URL, DATABASE_URL, adresses contrats)
+```
+
+**Stack** : TypeScript + Fastify + Prisma + PostgreSQL + viem
+
+### Lancer le backend
+```bash
+cd backend
+cp .env.example .env        # remplir les adresses après déploiement Sepolia
+npm install
+npm run db:push             # crée les tables PostgreSQL
+npm run dev                 # démarre indexeur + API sur :3001
+```
+
+### Endpoints API
+```
+GET /health                 — Santé du service
+GET /vault                  — TVL, fee, reward rate, stats
+GET /vault/history          — Historique dépôts/retraits
+GET /user/:address          — Shares, EURC, FBK pending, veFBK, lock
+GET /user/:address/history  — Transactions de l'utilisateur
+GET /user/:address/votes    — Votes de gouvernance
+GET /proposals              — Liste des propositions (?state=Active)
+GET /proposals/:id          — Détail + votes d'une proposition
 ```
 
 ---
@@ -134,24 +204,32 @@ forge script src/script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
 
 ```
 /
-├── CLAUDE.md                          # Ce fichier — instructions de l'assistant
-├── foundry.toml                       # Configuration Foundry
-├── .env.example                       # Variables d'environnement (template)
+├── CLAUDE.md                              # Ce fichier
+├── foundry.toml                           # Configuration Foundry
 ├── docs/
-│   ├── vision.md                      # Vision, positionnement, proposition de valeur
-│   ├── architecture.md                # Architecture technique détaillée ✅ complète
-│   ├── business-model.md              # Modèle économique et go-to-market ✅ complet
-│   ├── roadmap.md                     # Feuille de route par phases ✅ complète
-│   ├── reglementation.md              # Analyse réglementaire (à créer)
-│   ├── competitive-analysis.md        # Analyse concurrentielle (à créer)
+│   ├── vision.md                          # Vision et proposition de valeur ✅
+│   ├── architecture.md                    # Architecture technique ✅
+│   ├── business-model.md                  # Modèle économique ✅
+│   ├── roadmap.md                         # Feuille de route ✅
+│   ├── FinBank_Code_Explique_Ligne_Par_Ligne.pdf  # Explication code pour fondateur ✅
 │   └── conversations/
-│       └── 2026-04-24-exploration-initiale.md
-└── src/                               # Smart contracts Solidity
-    ├── FinBankVault.sol
-    ├── interfaces/
-    ├── utils/
-    ├── test/
-    └── script/
+│       ├── 2026-04-24-security-audit-deploy.md
+│       └── 2026-04-25-mocks-backend-review.md
+├── src/                                   # Smart contracts Solidity ✅
+│   ├── FinBankVault.sol
+│   ├── FBKToken.sol
+│   ├── VeFBK.sol
+│   ├── FBKDistributor.sol
+│   ├── FinBankGovernor.sol
+│   ├── interfaces/
+│   ├── utils/EASChecker.sol
+│   ├── mocks/                             # MockERC20 + MockMorpho (Sepolia)
+│   ├── test/                              # 169 tests Foundry
+│   └── script/Deploy.s.sol
+└── backend/                               # Indexeur + API off-chain ✅
+    ├── src/
+    ├── prisma/schema.prisma
+    └── .env.example
 ```
 
 ---
@@ -203,8 +281,42 @@ forge script src/script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
 
 ---
 
+## Déploiement Base Sepolia — ACTIF ✅
+
+### Adresses des contrats (Base Sepolia — 2ème déploiement, bug MockMorpho corrigé)
+
+| Contrat | Adresse |
+|---|---|
+| MockEURC | `0x914bD84678ABc7ace192ba0f27Ac7a5e5920e218` |
+| MockMorpho | `0xcf235aA8485bddCCB8d276a8AC97bD78521974ca` |
+| EASChecker | `0x7E069926A4cf1D6EaF6FA8823c91B356CDCC1b03` |
+| FBKToken | `0x9B0a0f72D836AcD51DAD8efE31aa667569090F18` |
+| FinBankVault | `0x5C763aA7536BF5D67155553BD709Ca66187CDfDd` |
+| VeFBK | `0x977f97eb4d637BE63fFec069329673358acF4A6F` |
+| FBKDistributor | `0xeba8C8720cc1fA0AC51bE9F618ebEe9d1ecFBc3f` |
+| FinBankGovernor | `0x1aE5609aff8bA236ba601E7554135F35f3ab88F0` |
+
+- **Wallet deployer** : `0x8e4A6f0866904D9edB6bb5e2CD56199EAfadEEA6`
+- **RPC** : `https://sepolia.base.org` (public, pas de limite eth_getLogs)
+- **DB** : Supabase PostgreSQL — pooler `aws-1-eu-central-1.pooler.supabase.com:5432`
+
+### Tests end-to-end validés on-chain ✅
+- KYC (attestation EAS + registerAttestation) → `isAuthorized: true`
+- Dépôt 1000 EURC → 1 000 000 000 shares fbEURC, `totalAssets = 1 000 000 000`
+- Yield +50 EURC → `totalAssets = 1 050 000 000`
+- Retrait 50% → 521.25 EURC (yield inclus)
+- **ONCHAIN EXECUTION COMPLETE & SUCCESSFUL**
+
+### Lancer le backend (Sepolia)
+```bash
+cd backend
+npm run dev   # indexeur + API sur :3001 (RPC public Base Sepolia)
+```
+
+---
+
 ## État du projet
 
-**Phase actuelle** : Phase 1 — Smart Contracts & Testnet
-**Dernière mise à jour** : 2026-04-24
-**Prochaine étape** : Écrire VeFBK.sol + FBKDistributor.sol + FinBankGovernor.sol, puis déployer sur Base Sepolia
+**Phase actuelle** : Phase 3 — Frontend Next.js
+**Dernière mise à jour** : 2026-04-25
+**Prochaine étape** : Frontend Next.js 14 + wagmi + viem + TailwindCSS + shadcn/ui

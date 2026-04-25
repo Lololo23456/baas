@@ -54,6 +54,7 @@ contract VeFBK {
 
     error ZeroAmount();
     error ZeroAddress();
+    error AmountTooLarge(uint256 amount, uint256 maximum);
     error LockTooShort(uint256 duration, uint256 minimum);
     error LockTooLong(uint256 duration, uint256 maximum);
     error LockAlreadyExists();
@@ -82,6 +83,7 @@ contract VeFBK {
     // lockDuration est arrondi a la semaine inferieure pour simplifier le calcul.
     function createLock(uint256 amount, uint256 lockDuration) external {
         if (amount == 0) revert ZeroAmount();
+        if (amount > type(uint128).max) revert AmountTooLarge(amount, type(uint128).max);
         if (lockDuration < MIN_LOCK_DURATION) revert LockTooShort(lockDuration, MIN_LOCK_DURATION);
         if (lockDuration > MAX_LOCK_DURATION) revert LockTooLong(lockDuration, MAX_LOCK_DURATION);
         if (locked[msg.sender].amount > 0) revert LockAlreadyExists();
@@ -108,12 +110,15 @@ contract VeFBK {
         if (lock.amount == 0) revert NoLockFound();
         if (block.timestamp >= lock.end) revert LockExpired();
 
-        lock.amount  += uint128(additionalAmount);
-        totalLocked  += additionalAmount;
+        uint256 newTotal = uint256(lock.amount) + additionalAmount;
+        if (newTotal > type(uint128).max) revert AmountTooLarge(newTotal, type(uint128).max);
+
+        lock.amount  = uint128(newTotal);
+        totalLocked += additionalAmount;
 
         fbk.transferFrom(msg.sender, address(this), additionalAmount);
 
-        emit LockIncreased(msg.sender, additionalAmount, lock.amount);
+        emit LockIncreased(msg.sender, additionalAmount, uint256(lock.amount));
     }
 
     // Prolonge la duree du lock sans changer le montant.

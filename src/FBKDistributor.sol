@@ -29,6 +29,9 @@ contract FBKDistributor {
 
     uint256 private constant PRECISION = 1e18;
 
+    // Taux maximum : épuise 100M FBK en 7 jours minimum (~165 FBK/sec).
+    uint256 public constant MAX_REWARD_RATE = 165e18;
+
     // ── Storage ───────────────────────────────────────────────────────────────
 
     IFBKToken public immutable fbk;
@@ -69,12 +72,14 @@ contract FBKDistributor {
     error NotVault();
     error ZeroAddress();
     error NothingToClaim();
+    error RewardRateTooHigh(uint256 rate, uint256 max);
 
     // ── Events ────────────────────────────────────────────────────────────────
 
     event RewardRateUpdated(uint256 oldRate, uint256 newRate);
     event Claimed(address indexed user, uint256 amount);
     event SharesUpdated(address indexed user, uint256 userShares, uint256 totalShares);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -142,9 +147,12 @@ contract FBKDistributor {
     }
 
     // Appele par le Vault apres chaque retrait. Decremente les shares de l'utilisateur.
+    // Clamp a 0 pour eviter un revert si les shares sont desynchronisees (ex: transfert direct).
     function notifyWithdraw(address user, uint256 shares) external onlyVault updateReward(user) {
-        userShares[user] -= shares;
-        totalShares      -= shares;
+        uint256 current  = userShares[user];
+        uint256 toRemove = shares > current ? current : shares;
+        userShares[user] = current - toRemove;
+        totalShares      = totalShares > toRemove ? totalShares - toRemove : 0;
         emit SharesUpdated(user, userShares[user], totalShares);
     }
 
@@ -166,12 +174,14 @@ contract FBKDistributor {
 
     // Met a jour le taux de distribution. L'accumulateur est mis a jour avant le changement.
     function setRewardRate(uint256 newRate) external onlyOwner updateReward(address(0)) {
+        if (newRate > MAX_REWARD_RATE) revert RewardRateTooHigh(newRate, MAX_REWARD_RATE);
         emit RewardRateUpdated(rewardRate, newRate);
         rewardRate = newRate;
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
 }

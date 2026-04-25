@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens ───────────────────────────────────── */
+:root {
+  --white:      #FFFFFF;
+  --gray-50:    #F8FAFC;
+  --gray-100:   #F1F5F9;
+  --gray-200:   #E2E8F0;
+  --gray-400:   #94A3B8;
+  --gray-500:   #64748B;
+  --gray-900:   #0F172A;
+  --black:      #000000;
+}
+
+/* ── Base ────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  background: var(--white);
+  color: var(--gray-900);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+::selection { background: rgba(15, 23, 42, 0.08); }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+
+/* ── Typography helpers ──────────────────────────────── */
+.display {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.0;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Components ──────────────────────────────────────── */
+
+/* Card */
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 20px;
+}
+
+/* Pill badge */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  background: var(--gray-100);
+  padding: 5px 10px;
+  border-radius: 100px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 12px;
+  padding: 14px 24px;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-dark {
+  background: var(--gray-900);
+  color: var(--white);
+}
+.btn-dark:hover { background: #1e2d4a; }
+
+.btn-outline {
+  background: transparent;
+  color: var(--gray-900);
+  border: 1.5px solid var(--gray-200);
+}
+.btn-outline:hover {
+  border-color: var(--gray-900);
+  background: var(--gray-50);
+}
+
+.btn-ghost {
+  background: var(--gray-100);
+  color: var(--gray-900);
+}
+.btn-ghost:hover { background: var(--gray-200); }
+
+/* Input */
+.input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--gray-900);
+  background: var(--gray-50);
+  border: 1.5px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.input:focus { border-color: var(--gray-900); background: var(--white); }
+.input::placeholder { color: var(--gray-400); }
+
+/* Live dot */
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #22C55E;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* Fade-up animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  opacity: 0;
+  animation: fadeUp 0.6s ease forwards;
+}
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }

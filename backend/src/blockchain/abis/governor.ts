@@ -1,0 +1,90 @@
+export const governorAbi = [
+  {
+    type: 'event',
+    name: 'ProposalCreated',
+    inputs: [
+      { name: 'proposalId',  type: 'uint256',   indexed: true  },
+      { name: 'proposer',    type: 'address',   indexed: true  },
+      { name: 'targets',     type: 'address[]', indexed: false },
+      { name: 'values',      type: 'uint256[]', indexed: false },
+      { name: 'calldatas',   type: 'bytes[]',   indexed: false },
+      { name: 'voteStart',   type: 'uint256',   indexed: false },
+      { name: 'voteEnd',     type: 'uint256',   indexed: false },
+      { name: 'description', type: 'string',    indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'VoteCast',
+    inputs: [
+      { name: 'voter',      type: 'address', indexed: true  },
+      { name: 'proposalId', type: 'uint256', indexed: true  },
+      { name: 'voteType',   type: 'uint8',   indexed: false },
+      { name: 'weight',     type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'ProposalExecuted',
+    inputs: [{ name: 'proposalId', type: 'uint256', indexed: true }],
+  },
+  {
+    type: 'event',
+    name: 'ProposalCanceled',
+    inputs: [{ name: 'proposalId', type: 'uint256', indexed: true }],
+  },
+  {
+    type: 'event',
+    name: 'ProposalQueued',
+    inputs: [
+      { name: 'proposalId', type: 'uint256', indexed: true  },
+      { name: 'eta',        type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'getState',
+    stateMutability: 'view',
+    inputs: [{ name: 'proposalId', type: 'uint256' }],
+    outputs: [{ type: 'uint8' }],
+  },
+  {
+    type: 'function',
+    name: 'getProposalVotes',
+    stateMutability: 'view',
+    inputs: [{ name: 'proposalId', type: 'uint256' }],
+    outputs: [
+      { name: 'forVotes',     type: 'uint256' },
+      { name: 'againstVotes', type: 'uint256' },
+      { name: 'abstainVotes', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'quorumVotes',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'proposalCount',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'votingDelay',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'votingPeriod',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+] as const

@@ -19,6 +19,7 @@ import {IEAS, Attestation} from "../interfaces/IEAS.sol";
 contract EASChecker {
     // ── Erreurs ───────────────────────────────────────────────────────────────
     error NotOwner();
+    error ZeroAddress();
     error AttestorAlreadyApproved(address attestor);
     error AttestorNotFound(address attestor);
     error NoValidAttestation(address user);
@@ -27,6 +28,7 @@ contract EASChecker {
     event AttestorApproved(address indexed attestor);
     event AttestorRevoked(address indexed attestor);
     event SchemaUpdated(bytes32 newSchema);
+    event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
     // ── Storage ───────────────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ contract EASChecker {
 
     // @notice Transfert de ownership vers la DAO (multisig ou gouvernance on-chain).
     function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
         owner = newOwner;
     }
 
@@ -101,25 +105,15 @@ contract EASChecker {
     //      L'attestation doit être émise par un Attestor agréé et viser son adresse.
     // @param attestationUID UID de l'attestation EAS obtenue via l'Attestor.
     function registerAttestation(bytes32 attestationUID) external {
-        // Récupère l'attestation depuis EAS
         Attestation memory att = eas.getAttestation(attestationUID);
 
-        // Vérifications :
-        // 1. L'attestation cible bien l'appelant
-        require(att.recipient == msg.sender, "EASChecker: attestation not for caller");
-        // 2. L'Attestor est agréé par la DAO
-        require(approvedAttestors[att.attester], "EASChecker: attestor not approved");
-        // 3. Le schema correspond au schema KYC FinBank
-        require(att.schema == kycSchema, "EASChecker: wrong schema");
-        // 4. L'attestation n'est pas révoquée
-        require(att.revocationTime == 0, "EASChecker: attestation revoked");
-        // 5. L'attestation n'est pas expirée
-        require(
-            att.expirationTime == 0 || att.expirationTime > block.timestamp,
-            "EASChecker: attestation expired"
-        );
+        if (att.recipient != msg.sender)          revert NoValidAttestation(msg.sender);
+        if (!approvedAttestors[att.attester])     revert NoValidAttestation(msg.sender);
+        if (att.schema != kycSchema)              revert NoValidAttestation(msg.sender);
+        if (att.revocationTime != 0)              revert NoValidAttestation(msg.sender);
+        if (att.expirationTime != 0 && att.expirationTime <= block.timestamp)
+                                                  revert NoValidAttestation(msg.sender);
 
-        // Stocke l'UID
         userAttestationUID[msg.sender] = attestationUID;
     }
 

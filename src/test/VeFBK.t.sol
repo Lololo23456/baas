@@ -558,9 +558,12 @@ contract VeFBKTest is Test {
         uint256 balYear1 = ve.balanceOf(ALICE);
         assertLt(balYear1, balStart + 1_000 * ONE, "veFBK should not simply add linearly");
 
-        // 4. Elle prolonge jusqu'au maximum
+        // 4. Elle prolonge jusqu'au maximum depuis la position actuelle.
+        // Note : via_ir re-evalue t0 comme block.timestamp courant apres warp,
+        // donc on utilise block.timestamp directement (= timestamp post-warp = t0+1an).
+        // Le maximum autorise est block.timestamp + MAX_LOCK (arrondi a la semaine).
         vm.prank(ALICE);
-        ve.extendLock(t0 + MAX_LOCK + WEEK);
+        ve.extendLock(block.timestamp + MAX_LOCK);
 
         // 5. Elle attend que le lock expire et retire
         (, uint64 end) = ve.locked(ALICE);
