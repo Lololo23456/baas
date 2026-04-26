@@ -1,13 +1,14 @@
-// Contract addresses — Base Sepolia (3ème déploiement — EASChecker avec allowlist/selfRegister)
+// Contract addresses — Base Sepolia (3ème déploiement — adresses broadcast réelles)
+// Source de vérité : broadcast/Deploy.s.sol/84532/run-latest.json
 export const CONTRACTS = {
-  VAULT:       '0x1719f83defCfEde745fa80c8D16B7cf56f2aD1e4' as const,
-  FBK_TOKEN:   '0x21447eB0497cE52Cd508B57826d417707Ee47878' as const,
-  DISTRIBUTOR: '0x28BE449B18b9eC2ADff49f13acAB048FaD3D2FBD' as const,
-  VE_FBK:      '0x99AD12d2A7C5F74775C5b7CB2fEc6e5a869f2FE9' as const,
-  GOVERNOR:    '0xe2c80c50e81c3Eb0B0a6150dcCC4066a6aD6dab4' as const,
+  VAULT:       '0x552138ef55e32b656fe303ccdd5b388dfb7bff9b' as const,
+  FBK_TOKEN:   '0xc6d0dd119aca3cb99c7c20d18fb9aee8bb44548e' as const,
+  DISTRIBUTOR: '0xa2823df3f7c9c0735e1ff4f8f4a06dd33b34e0b7' as const,
+  VE_FBK:      '0x6089374304d838f5aaf1fa16f6919b2a95a2e231' as const,
+  GOVERNOR:    '0xb183d6aa4e1a21d9b0961119438c1eaf2a5898e0' as const,
   EAS_CHECKER: '0x51210B5837521f1254F88Bcd77D4BBEB2b0254c0' as const,
-  MOCK_EURC:   '0xB17084217fcd338C60a3e3394a97CB978c803d03' as const,
-  MOCK_MORPHO: '0xA7c49e53573566B3b0143CDe8DCdC05Db316aBd5' as const,
+  MOCK_EURC:   '0x35ba4bd0c7b54a96ba9beea965eeb50c57cc6501' as const,
+  MOCK_MORPHO: '0xedac18110f28fdf3276fb15b7d429721d67c0515' as const,
 }
 
 export const BASESCAN_URL = 'https://sepolia.basescan.org'
