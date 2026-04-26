@@ -390,6 +390,60 @@ contract FinBankVaultTest is Test {
         vault.setTreasury(address(0x999));
     }
 
+    // ── Tests : EASChecker allowlist / selfRegister ───────────────────────────
+
+    function test_selfRegister_allowsDeposit() public {
+        vm.prank(CHARLIE);
+        checker.selfRegister();
+
+        assertTrue(checker.isAuthorized(CHARLIE));
+
+        vm.prank(CHARLIE);
+        eurc.approve(address(vault), 1_000e6);
+        vm.prank(CHARLIE);
+        vault.deposit(1_000e6, CHARLIE);
+
+        assertEq(vault.totalAssets(), 1_000e6);
+    }
+
+    event Allowlisted(address indexed user, bool status);
+
+    function test_selfRegister_emitsEvent() public {
+        vm.prank(CHARLIE);
+        vm.expectEmit(true, false, false, true, address(checker));
+        emit Allowlisted(CHARLIE, true);
+        checker.selfRegister();
+    }
+
+    function test_setAllowed_ownerCanWhitelist() public {
+        assertFalse(checker.isAuthorized(CHARLIE));
+        checker.setAllowed(CHARLIE, true);
+        assertTrue(checker.isAuthorized(CHARLIE));
+    }
+
+    function test_setAllowed_ownerCanBlacklist() public {
+        checker.setAllowed(CHARLIE, true);
+        assertTrue(checker.allowlisted(CHARLIE));
+        checker.setAllowed(CHARLIE, false);
+        assertFalse(checker.allowlisted(CHARLIE));
+    }
+
+    function test_setAllowed_zeroAddress_reverts() public {
+        vm.expectRevert(EASChecker.ZeroAddress.selector);
+        checker.setAllowed(address(0), true);
+    }
+
+    function test_setAllowed_onlyOwner() public {
+        vm.prank(ALICE);
+        vm.expectRevert(EASChecker.NotOwner.selector);
+        checker.setAllowed(CHARLIE, true);
+    }
+
+    function test_allowlist_takesPriorityOverEAS() public {
+        checker.setAllowed(CHARLIE, true);
+        assertTrue(checker.isAuthorized(CHARLIE));
+    }
+
     function test_setChecker_onlyOwner() public {
         vm.prank(ALICE);
         vm.expectRevert(FinBankVault.NotOwner.selector);

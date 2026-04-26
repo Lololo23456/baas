@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useChainId } from 'wagmi'
 import { readContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { formatUnits, parseUnits } from 'viem'
 import { config } from '@/lib/wagmi'
@@ -62,6 +62,8 @@ const fmt18 = (v?: bigint) =>
 /* ═══════════════════════════════════════════════════════════ */
 export default function AccountView() {
   const { address } = useAccount()
+  const chainId = useChainId()
+  const isTestnet = chainId === 84532 // Base Sepolia
 
   const [tab,          setTab]          = useState<Tab>('overview')
   const [activeModal,  setActiveModal]  = useState<'deposit' | 'withdraw' | null>(null)
@@ -87,7 +89,11 @@ export default function AccountView() {
   // Faucet error
   const [mintError, setMintError] = useState<string | null>(null)
 
-  // KYC verification flow
+  // KYC — testnet self-register flow
+  const [registering, setRegistering] = useState(false)
+  const [registerError, setRegisterError] = useState<string | null>(null)
+
+  // KYC verification flow (mainnet — Coinbase)
   const [verifyClicked, setVerifyClicked] = useState(false)
 
   /* ── On-chain reads ──────────────────────────────────────── */
@@ -356,6 +362,28 @@ export default function AccountView() {
     }
   }
 
+  /* ── Testnet KYC : selfRegister ─────────────────────────── */
+  const handleSelfRegister = async () => {
+    if (registering) return
+    setRegistering(true)
+    setRegisterError(null)
+    try {
+      const hash = await writeContractAsync({
+        address: CONTRACTS.EAS_CHECKER,
+        abi: EAS_CHECKER_ABI,
+        functionName: 'selfRegister',
+      })
+      await waitForTransactionReceipt(config, { hash })
+      refetchAuth()
+    } catch (err) {
+      if (!(err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001')))) {
+        setRegisterError(extractError(err))
+      }
+    } finally {
+      setRegistering(false)
+    }
+  }
+
   /* ── Derived display values ──────────────────────────────── */
   const TVL       = fmt6(totalAssets)
   const myBalance = fmt6(userAssets)
@@ -473,7 +501,41 @@ export default function AccountView() {
           </div>
 
           {/* ── KYC status ────────────────────────────────── */}
-          {isAuthorized === false && !verifyClicked && (
+
+          {/* Testnet : selfRegister one-click */}
+          {isAuthorized === false && isTestnet && (
+            <div style={{
+              border: '1px solid #E2E8F0',
+              background: '#F8FAFC',
+              borderRadius: 12,
+              padding: '16px 20px',
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 15 }}>🧪</span>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
+                  Testnet — get instant access
+                </p>
+              </div>
+              <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
+                On Base Sepolia, KYC is bypassed for testing. One click registers your wallet on-chain.
+              </p>
+              <button
+                onClick={handleSelfRegister}
+                disabled={registering}
+                className="btn btn-dark"
+                style={{ fontSize: 12, padding: '10px 18px', opacity: registering ? 0.6 : 1 }}
+              >
+                {registering ? 'Registering…' : 'Get testnet access'}
+              </button>
+              {registerError && (
+                <p style={{ fontSize: 11, color: '#EF4444', marginTop: 8 }}>{registerError}</p>
+              )}
+            </div>
+          )}
+
+          {/* Mainnet : Coinbase Verifications flow */}
+          {isAuthorized === false && !isTestnet && !verifyClicked && (
             <div style={{
               border: '1px solid #E2E8F0',
               background: '#F8FAFC',
@@ -504,7 +566,7 @@ export default function AccountView() {
             </div>
           )}
 
-          {isAuthorized === false && verifyClicked && (
+          {isAuthorized === false && !isTestnet && verifyClicked && (
             <div style={{
               border: '1px solid #DBEAFE',
               background: '#EFF6FF',
@@ -513,7 +575,7 @@ export default function AccountView() {
               marginBottom: 16,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 14, display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                <span style={{ fontSize: 14 }}>⏳</span>
                 <p style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
                   Waiting for verification…
                 </p>

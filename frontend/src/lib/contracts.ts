@@ -1,13 +1,13 @@
-// Contract addresses — Base Sepolia (current deployment)
+// Contract addresses — Base Sepolia (3ème déploiement — EASChecker avec allowlist/selfRegister)
 export const CONTRACTS = {
-  VAULT:       '0x5C763aA7536BF5D67155553BD709Ca66187CDfDd' as const,
-  FBK_TOKEN:   '0x9B0a0f72D836AcD51DAD8efE31aa667569090F18' as const,
-  DISTRIBUTOR: '0xeba8C8720cc1fA0AC51bE9F618ebEe9d1ecFBc3f' as const,
-  VE_FBK:      '0x977f97eb4d637BE63fFec069329673358acF4A6F' as const,
-  GOVERNOR:    '0x1aE5609aff8bA236ba601E7554135F35f3ab88F0' as const,
-  EAS_CHECKER: '0x7E069926A4cf1D6EaF6FA8823c91B356CDCC1b03' as const,
-  MOCK_EURC:   '0x914bD84678ABc7ace192ba0f27Ac7a5e5920e218' as const,
-  MOCK_MORPHO: '0xcf235aA8485bddCCB8d276a8AC97bD78521974ca' as const,
+  VAULT:       '0x1719f83defCfEde745fa80c8D16B7cf56f2aD1e4' as const,
+  FBK_TOKEN:   '0x21447eB0497cE52Cd508B57826d417707Ee47878' as const,
+  DISTRIBUTOR: '0x28BE449B18b9eC2ADff49f13acAB048FaD3D2FBD' as const,
+  VE_FBK:      '0x99AD12d2A7C5F74775C5b7CB2fEc6e5a869f2FE9' as const,
+  GOVERNOR:    '0xe2c80c50e81c3Eb0B0a6150dcCC4066a6aD6dab4' as const,
+  EAS_CHECKER: '0x51210B5837521f1254F88Bcd77D4BBEB2b0254c0' as const,
+  MOCK_EURC:   '0xB17084217fcd338C60a3e3394a97CB978c803d03' as const,
+  MOCK_MORPHO: '0xA7c49e53573566B3b0143CDe8DCdC05Db316aBd5' as const,
 }
 
 export const BASESCAN_URL = 'https://sepolia.basescan.org'
@@ -87,7 +87,7 @@ export const ERC20_ABI = [
       { name: 'spender', type: 'address' },
       { name: 'amount',  type: 'uint256' },
     ],
-    outputs: [{ name: '', type: 'bool' }],
+    outputs: [{ name: 'success', type: 'bool' }],
   },
   {
     name: 'allowance',
@@ -136,5 +136,13 @@ export const EAS_CHECKER_ABI = [
     stateMutability: 'view',
     inputs: [{ name: 'user', type: 'address' }],
     outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    // Testnet only — s'auto-enregistre dans l'allowlist sans EAS attestation
+    name: 'selfRegister',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
   },
 ] as const

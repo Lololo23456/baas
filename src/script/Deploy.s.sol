@@ -41,6 +41,7 @@ import {VeFBK}                from "../VeFBK.sol";
 import {FBKDistributor}       from "../FBKDistributor.sol";
 import {FinBankGovernor}      from "../FinBankGovernor.sol";
 import {CoinbaseEASChecker}   from "../utils/CoinbaseEASChecker.sol";
+import {EASChecker}           from "../utils/EASChecker.sol";
 import {MarketParams}         from "../interfaces/IMorpho.sol";
 import {MockERC20}            from "../mocks/MockERC20.sol";
 import {MockMorpho}           from "../mocks/MockMorpho.sol";
@@ -159,22 +160,28 @@ contract DeployFinBank is Script {
         }
         console.log("");
 
-        // ── 1. CoinbaseEASChecker ─────────────────────────────────────────────
-        // Utilise Coinbase Verifications (EAS on-chain) comme provider KYC.
-        // Les utilisateurs vérifient leur identité sur coinbase.com/onchain-verify.
-        address cbIndexer  = isMainnet ? CB_INDEXER_MAINNET  : CB_INDEXER_SEPOLIA;
-        address cbAttester = isMainnet ? CB_ATTESTER_MAINNET : CB_ATTESTER_SEPOLIA;
-        bytes32 cbSchema   = isMainnet ? CB_SCHEMA_MAINNET   : CB_SCHEMA_SEPOLIA;
-
-        CoinbaseEASChecker checker = new CoinbaseEASChecker(
-            eas,
-            cbIndexer,
-            cbAttester,
-            cbSchema
-        );
-        console.log("1. CoinbaseEASChecker :", address(checker));
-        console.log("   Indexer            :", cbIndexer);
-        console.log("   Attester           :", cbAttester);
+        // ── 1. EASChecker (Sepolia) / CoinbaseEASChecker (Mainnet) ───────────
+        // Sepolia : EASChecker avec allowlist + selfRegister() — pour tests sans KYC réel.
+        // Mainnet : CoinbaseEASChecker via Coinbase Verifications (coinbase.com/onchain-verify).
+        address checker;
+        if (isMainnet) {
+            CoinbaseEASChecker cbChecker = new CoinbaseEASChecker(
+                eas,
+                CB_INDEXER_MAINNET,
+                CB_ATTESTER_MAINNET,
+                CB_SCHEMA_MAINNET
+            );
+            checker = address(cbChecker);
+            console.log("1. CoinbaseEASChecker:", checker);
+            console.log("   Indexer           :", CB_INDEXER_MAINNET);
+            console.log("   Attester          :", CB_ATTESTER_MAINNET);
+        } else {
+            // Schema factice sur Sepolia — la vérif EAS est bypassed via selfRegister()
+            EASChecker easChecker = new EASChecker(eas, bytes32(uint256(1)));
+            checker = address(easChecker);
+            console.log("1. EASChecker (Sepolia, allowlist mode):", checker);
+            console.log("   Tip: call selfRegister() to get KYC access on testnet");
+        }
 
         // ── 2. FBKToken ───────────────────────────────────────────────────────
         // Le deployer est minter temporaire — sera remplacé par FBKDistributor.
@@ -246,7 +253,7 @@ contract DeployFinBank is Script {
         console.log("Network              :", isMainnet ? "Base Mainnet" : "Base Sepolia");
         console.log("EURC                 :", eurc);
         console.log("Morpho               :", morpho);
-        console.log("CoinbaseEASChecker   :", address(checker));
+        console.log("EASChecker/Coinbase  :", checker);
         console.log("FBKToken        :", address(fbk));
         console.log("FinBankVault    :", address(vault));
         console.log("VeFBK           :", address(veFBK));

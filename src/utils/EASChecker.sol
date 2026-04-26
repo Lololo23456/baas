@@ -31,6 +31,7 @@ contract EASChecker is IEASChecker {
     event SchemaUpdated(bytes32 newSchema);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
     event AttestationRegistered(address indexed user, bytes32 indexed uid);
+    event Allowlisted(address indexed user, bool status);
 
     // ── Storage ───────────────────────────────────────────────────────────────
 
@@ -48,9 +49,13 @@ contract EASChecker is IEASChecker {
     // @dev mapping(attestorAddress => isApproved)
     mapping(address => bool) public approvedAttestors;
 
-    // @notice Attestation active par wallet.
-    // @dev Le wallet soumet son attestation UID une seule fois lors de l'onboarding.
+    // Attestation active par wallet.
+    // Le wallet soumet son attestation UID une seule fois lors de l'onboarding.
     mapping(address => bytes32) public userAttestationUID;
+
+    // Allowlist directe — pour les tests Sepolia ou whitelisting manuel (owner).
+    // Contourne le circuit EAS. En production, utiliser CoinbaseEASChecker.
+    mapping(address => bool) public allowlisted;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -100,6 +105,22 @@ contract EASChecker is IEASChecker {
         owner = newOwner;
     }
 
+    // ── Testnet allowlist ─────────────────────────────────────────────────────
+
+    // Enregistre l'appelant dans l'allowlist sans passer par EAS.
+    // Pratique sur Sepolia pour tester sans Attestor réel.
+    function selfRegister() external {
+        allowlisted[msg.sender] = true;
+        emit Allowlisted(msg.sender, true);
+    }
+
+    // L'owner peut whitelister ou blacklister n'importe quelle adresse.
+    function setAllowed(address user, bool status) external onlyOwner {
+        if (user == address(0)) revert ZeroAddress();
+        allowlisted[user] = status;
+        emit Allowlisted(user, status);
+    }
+
     // ── Onboarding ────────────────────────────────────────────────────────────
 
     // @notice Enregistre l'attestation KYC d'un utilisateur.
@@ -128,6 +149,9 @@ contract EASChecker is IEASChecker {
     // @param user Adresse du wallet à vérifier.
     // @return true si le wallet peut déposer.
     function isAuthorized(address user) external view returns (bool) {
+        // Allowlist directe — priorité sur le circuit EAS
+        if (allowlisted[user]) return true;
+
         bytes32 uid = userAttestationUID[user];
 
         // Pas d'attestation enregistrée
