@@ -45,7 +45,9 @@
       "Bash(python3 -c \" from PyPDF2 import PdfReader r = PdfReader\\('/Users/loic/Desktop/BAAS/docs/FinBank_Plan_Complet_Vision_Architecture.pdf'\\) print\\(f'Pages: {len\\(r.pages\\)}'\\) \")",
       "Bash(python3 -c \" import subprocess result = subprocess.run\\(['pdfinfo', '/Users/loic/Desktop/BAAS/docs/FinBank_Plan_Complet_Vision_Architecture.pdf'], capture_output=True, text=True\\) print\\(result.stdout\\) \")",
       "Bash(curl -s http://localhost:3000)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx vercel *)",
+      "Bash(git add *)"
     ]
   }
 }

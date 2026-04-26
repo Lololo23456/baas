@@ -165,6 +165,51 @@ GET /proposals/:id          — Détail + votes d'une proposition
 
 ---
 
+## Frontend Web — DÉPLOYÉ ✅
+
+**URL production :** https://frontend-fin-bank.vercel.app
+**Projet Vercel :** fin-bank/frontend
+**Stack :** Next.js 14 + wagmi v2 + viem + TailwindCSS (inline styles)
+
+```
+frontend/src/
+├── app/
+│   ├── layout.tsx          — Inter font, Navbar global, Providers
+│   ├── page.tsx            — Landing (hero, piliers, how-it-works, comparaison, CTA)
+│   ├── providers.tsx       — WagmiProvider + QueryClientProvider
+│   ├── globals.css         — Design system (tokens, btn, card, input, live-dot)
+│   ├── app/page.tsx        — Dashboard (ConnectWallet si non connecté, sinon AccountView)
+│   ├── governance/page.tsx — DAO pouvoirs (what it can / cannot do)
+│   └── stake/page.tsx      — Placeholder $veFBK (V2)
+├── components/
+│   ├── layout/Navbar.tsx          — Nav fixe, active state, wallet address
+│   ├── bank/LiveProofCard.tsx     — TVL + block live on-chain (landing)
+│   ├── bank/ConnectWallet.tsx     — Base Smart Wallet + MetaMask + gestion erreurs
+│   └── bank/AccountView.tsx       — Dashboard complet (tabs, deposit, withdraw, claim)
+└── lib/
+    ├── wagmi.ts      — Config wagmi (baseSepolia + base, connectors)
+    └── contracts.ts  — Adresses + ABIs (VAULT, ERC20, DISTRIBUTOR)
+```
+
+### Décisions clés frontend
+- **Lecture directe blockchain** pour les données temps réel (pas de backend pour les reads)
+- **Backend non branché** — sera connecté quand features historique/gouvernance construites
+- **Deposit flow sécurisé** : allowance check → approve (si besoin) → deposit (2 txs chaînées)
+- **Retrait en EURC** : input EURC → `convertToShares()` on-chain → `redeem()`
+- **Decimals shares = 6** (confirmé dans FinBankVault.sol : `uint8 public decimals = 6`)
+- **22 issues corrigés** lors du security + accessibility review
+
+### Déployer une mise à jour
+```bash
+cd frontend
+git add . && git commit -m "..."
+git push origin main   # auto-deploy Vercel si GitHub connecté
+# ou manuellement :
+npx vercel --prod --yes
+```
+
+---
+
 ## Adresses importantes (Base Mainnet)
 
 | Contrat | Adresse |
@@ -317,6 +362,7 @@ npm run dev   # indexeur + API sur :3001 (RPC public Base Sepolia)
 
 ## État du projet
 
-**Phase actuelle** : Phase 3 — Frontend Next.js
-**Dernière mise à jour** : 2026-04-25
-**Prochaine étape** : Frontend Next.js 14 + wagmi + viem + TailwindCSS + shadcn/ui
+**Phase actuelle** : Phase 3 ✅ — Frontend déployé en production
+**Dernière mise à jour** : 2026-04-26
+**URL production** : https://frontend-fin-bank.vercel.app
+**Prochaine étape** : Domaine custom + contacts Synaps/Monerium + choix firme d'audit
