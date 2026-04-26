@@ -156,6 +156,14 @@ export default function AccountView() {
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
+  const { data: fbkBalance, refetch: refetchFbkBalance } = useReadContract({
+    address: CONTRACTS.FBK_TOKEN,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address, refetchInterval: POLL_MS },
+  })
+
   const { data: isAuthorized, refetch: refetchAuth } = useReadContract({
     address: CONTRACTS.EAS_CHECKER,
     abi: EAS_CHECKER_ABI,
@@ -201,6 +209,7 @@ export default function AccountView() {
       refetchAllowance(),
       refetchMaxWithdraw(),
       refetchFbk(),
+      refetchFbkBalance(),
     ])
   }, [refetchTotalAssets, refetchShares, refetchAssets, refetchEurc, refetchAllowance, refetchMaxWithdraw, refetchFbk])
 
@@ -399,12 +408,13 @@ export default function AccountView() {
   }
 
   /* ── Derived display values ──────────────────────────────── */
-  const TVL       = fmt6(totalAssets)
-  const myBalance = fmt6(userAssets)
-  const walletEurc= fmt6(eurcBalance)
-  const maxOut    = fmt6(maxWithdrawable)
-  const fbkPending= fmt18(pendingFbk)
-  const shortAddr = address ? `${address.slice(0, 10)}···${address.slice(-6)}` : ''
+  const TVL        = fmt6(totalAssets)
+  const myBalance  = fmt6(userAssets)
+  const walletEurc = fmt6(eurcBalance)
+  const maxOut     = fmt6(maxWithdrawable)
+  const fbkPending = fmt18(pendingFbk)
+  const fbkWallet  = fmt18(fbkBalance)
+  const shortAddr  = address ? `${address.slice(0, 10)}···${address.slice(-6)}` : ''
 
   /* ── Deposit button label ────────────────────────────────── */
   const depositLabel = () => {
@@ -628,38 +638,78 @@ export default function AccountView() {
             </div>
           )}
 
-          {/* Stat grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-            {[
-              { label: 'Wallet EURC', value: `€ ${walletEurc}`, sub: 'Available to deposit' },
-              { label: 'Protocol TVL', value: `€ ${TVL}`,  sub: 'Total member deposits' },
-              { label: '$FBK Claimable', value: fbkPending, sub: 'Governance tokens earned', action: true },
-            ].map(({ label, value, sub, action }) => (
-              <div key={label} className="card" style={{ padding: '20px' }}>
-                <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-                  {label}
-                </p>
-                <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                  {value}
-                </p>
-                <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{sub}</p>
-                {action && pendingFbk !== undefined && pendingFbk > 0n && (
-                  <>
-                    <button
-                      onClick={handleClaim}
-                      disabled={claiming}
-                      className="btn btn-ghost"
-                      style={{ marginTop: 10, fontSize: 11, padding: '6px 12px', width: '100%', opacity: claiming ? 0.5 : 1 }}
-                    >
-                      {claiming ? 'Claiming…' : 'Claim'}
-                    </button>
-                    {claimError && (
-                      <p style={{ fontSize: 11, color: '#EF4444', marginTop: 6, textAlign: 'center' }}>{claimError}</p>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
+          {/* Stat grid — 2x2 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
+
+            {/* Wallet EURC */}
+            <div className="card" style={{ padding: '20px' }}>
+              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Wallet EURC
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                € {walletEurc}
+              </p>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Available to deposit</p>
+            </div>
+
+            {/* Protocol TVL */}
+            <div className="card" style={{ padding: '20px' }}>
+              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
+                Protocol TVL
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                € {TVL}
+              </p>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Total member deposits</p>
+            </div>
+
+            {/* $FBK Claimable */}
+            <div className="card" style={{ padding: '20px' }}>
+              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
+                $FBK Claimable
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                {fbkPending}
+              </p>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Governance tokens earned</p>
+              {pendingFbk !== undefined && pendingFbk > 0n && (
+                <>
+                  <button
+                    onClick={handleClaim}
+                    disabled={claiming}
+                    className="btn btn-ghost"
+                    style={{ marginTop: 10, fontSize: 11, padding: '6px 12px', width: '100%', opacity: claiming ? 0.5 : 1 }}
+                  >
+                    {claiming ? 'Claiming…' : 'Claim'}
+                  </button>
+                  {claimError && (
+                    <p style={{ fontSize: 11, color: '#EF4444', marginTop: 6, textAlign: 'center' }}>{claimError}</p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* $FBK in wallet */}
+            <div className="card" style={{ padding: '20px' }}>
+              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
+                $FBK in Wallet
+              </p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                {fbkWallet}
+              </p>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Governance tokens held</p>
+              {fbkBalance !== undefined && fbkBalance > 0n && (
+                <a
+                  href={`${BASESCAN_URL}/token/${CONTRACTS.FBK_TOKEN}?a=${address}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'inline-block', marginTop: 10, fontSize: 11, color: '#64748B', textDecoration: 'none' }}
+                >
+                  View on Basescan ↗
+                </a>
+              )}
+            </div>
+
           </div>
 
           {/* Withdrawal guarantee */}
