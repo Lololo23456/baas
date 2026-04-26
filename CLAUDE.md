@@ -89,17 +89,17 @@ src/
     └── Deploy.s.sol          — Déploiement complet (détecte Mainnet/Sepolia via chainId)
 ```
 
-**170 tests — 0 échec**
+**174 tests — 0 échec**
 
 ### Fixes de sécurité appliqués
-- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout, `easChecker` mutable + `setChecker()` pour upgrade DAO, `CheckerUpdated` event
+- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout, `easChecker` mutable + `setChecker()` pour upgrade DAO, `CheckerUpdated` event, suppression WAD inutilisé, suppression ExecutionFailed inutilisé
 - **VeFBK** : vérification overflow uint128 avant tout cast
 - **FBKDistributor** : MAX_REWARD_RATE = 165e18 (plafond 7 jours min), notifyWithdraw clampé, event OwnershipTransferred, `SupplyCapReached` + claim() clampé au supply restant
 - **FinBankGovernor** : `CallFailed(uint256 index)` custom error, `require` → custom errors
 - **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event, `AttestationRegistered` event, implémente `IEASChecker`
-- **CoinbaseEASChecker** : nouveau — vérifie KYC via Coinbase Verifications (Indexer + EAS), attester validation, admin functions (setIndexer, setAttester, setSchema)
-- **FBKToken** : zero-address check dans transfer()
-- **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`), test `test_deposit_nonKYCReceiver_reverts()` ajouté, `test_redeem_withoutKYC_succeeds()` mis à jour (transfer shares au lieu de deposit direct)
+- **CoinbaseEASChecker** : nouveau — vérifie KYC via Coinbase Verifications (Indexer + EAS), attester validation, `ZeroSchema` error constructor + setSchema(), admin functions (setIndexer, setAttester, setSchema)
+- **FBKToken** : zero-address check dans transfer() et transferFrom()
+- **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`), test `test_deposit_nonKYCReceiver_reverts()` ajouté, `test_redeem_withoutKYC_succeeds()` mis à jour, `test_transferFrom_toZeroAddress_reverts()` ajouté
 
 ### Commandes Foundry
 ```bash
