@@ -26,7 +26,7 @@ pragma solidity ^0.8.21;
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {IMorpho, MarketParams, Id} from "./interfaces/IMorpho.sol";
-import {EASChecker} from "./utils/EASChecker.sol";
+import {IEASChecker} from "./interfaces/IEASChecker.sol";
 
 // Interface minimale du FBKDistributor — appele a chaque depot/retrait.
 interface IFBKDistributor {
@@ -96,6 +96,7 @@ contract FinBankVault {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event DistributorUpdated(address indexed oldDistributor, address indexed newDistributor);
+    event CheckerUpdated(address indexed oldChecker, address indexed newChecker);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
     // ── ERC-4626 / ERC-20 Storage ─────────────────────────────────────────────
@@ -129,8 +130,9 @@ contract FinBankVault {
     // @notice Paramètres du marché Morpho Blue actif.
     MarketParams public marketParams;
 
-    // @notice Vérificateur d'attestations KYC.
-    EASChecker public immutable easChecker;
+    // @notice Vérificateur KYC — implémente IEASChecker (EASChecker ou CoinbaseEASChecker).
+    // @dev Mutable : la DAO peut changer de provider KYC sans redéployer le Vault.
+    IEASChecker public easChecker;
 
     // @notice DAO / multisig propriétaire du protocole.
     address public owner;
@@ -172,7 +174,7 @@ contract FinBankVault {
         asset       = IERC20(_asset);
         morpho      = IMorpho(_morpho);
         marketParams = _market;
-        easChecker  = EASChecker(_checker);
+        easChecker  = IEASChecker(_checker);
         treasury    = _treasury;
         feeBps      = _feeBps;
         owner       = msg.sender;
@@ -442,6 +444,15 @@ contract FinBankVault {
 
         lastTotalAssets = totalAssets();
         emit MarketUpdated(oldId, _marketId(newMarket));
+    }
+
+    // @notice Met à jour le contrat vérificateur KYC (vote DAO requis).
+    // @dev Permet de changer de provider KYC (ex: migrer vers Coinbase Verifications)
+    //      sans redéployer le Vault. L'ancien checker est remplacé instantanément.
+    function setChecker(address newChecker) external onlyOwner {
+        if (newChecker == address(0)) revert ZeroAddress();
+        emit CheckerUpdated(address(easChecker), newChecker);
+        easChecker = IEASChecker(newChecker);
     }
 
     // @notice Configure le FBKDistributor (vote DAO requis).

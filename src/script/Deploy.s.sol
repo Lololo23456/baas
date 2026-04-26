@@ -5,12 +5,12 @@ pragma solidity ^0.8.21;
 // Script de déploiement FinBank — Base Mainnet / Base Sepolia
 //
 // Ordre de déploiement :
-//   1. EASChecker      — vérificateur d'attestations KYC
-//   2. FBKToken        — token de gouvernance $FBK (deployer = minter temporaire)
-//   3. FinBankVault    — vault ERC-4626 sur Morpho Blue
-//   4. VeFBK           — staking vote-escrowed (modèle Curve)
-//   5. FBKDistributor  — distribution $FBK aux déposants
-//   6. FinBankGovernor — gouvernance on-chain avec timelock
+//   1. CoinbaseEASChecker — vérificateur KYC via Coinbase Verifications (EAS)
+//   2. FBKToken           — token de gouvernance $FBK (deployer = minter temporaire)
+//   3. FinBankVault       — vault ERC-4626 sur Morpho Blue
+//   4. VeFBK              — staking vote-escrowed (modèle Curve)
+//   5. FBKDistributor     — distribution $FBK aux déposants
+//   6. FinBankGovernor    — gouvernance on-chain avec timelock
 //
 // Post-déploiement (appelé dans ce script) :
 //   - fbk.setMinter(distributor)       — Fair Launch : seul le distributor peut minter
@@ -35,15 +35,15 @@ pragma solidity ^0.8.21;
 // ─────────────────────────────────────────────────────────────────────────────
 
 import "forge-std/Script.sol";
-import {FinBankVault}    from "../FinBankVault.sol";
-import {FBKToken}        from "../FBKToken.sol";
-import {VeFBK}           from "../VeFBK.sol";
-import {FBKDistributor}  from "../FBKDistributor.sol";
-import {FinBankGovernor} from "../FinBankGovernor.sol";
-import {EASChecker}      from "../utils/EASChecker.sol";
-import {MarketParams}    from "../interfaces/IMorpho.sol";
-import {MockERC20}       from "../mocks/MockERC20.sol";
-import {MockMorpho}      from "../mocks/MockMorpho.sol";
+import {FinBankVault}         from "../FinBankVault.sol";
+import {FBKToken}             from "../FBKToken.sol";
+import {VeFBK}                from "../VeFBK.sol";
+import {FBKDistributor}       from "../FBKDistributor.sol";
+import {FinBankGovernor}      from "../FinBankGovernor.sol";
+import {CoinbaseEASChecker}   from "../utils/CoinbaseEASChecker.sol";
+import {MarketParams}         from "../interfaces/IMorpho.sol";
+import {MockERC20}            from "../mocks/MockERC20.sol";
+import {MockMorpho}           from "../mocks/MockMorpho.sol";
 
 contract DeployFinBank is Script {
 
@@ -53,23 +53,26 @@ contract DeployFinBank is Script {
     address constant MORPHO_MAINNET = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
     address constant EAS_MAINNET    = 0x4200000000000000000000000000000000000021;
 
+    // Coinbase Verifications — Base Mainnet (github.com/coinbase/verifications)
+    address constant CB_INDEXER_MAINNET  = 0x2c7eE1E5f416dfF40054c27A62f7B357C4E8619C;
+    address constant CB_ATTESTER_MAINNET = 0x357458739F90461b99789350868CD7CF330Dd7EE;
+    bytes32 constant CB_SCHEMA_MAINNET   = 0xf8b05c79f090979bf4a80270aba232dff11a10d9ca55c4f88de95317970f0de9;
+
     // ── Adresses Base Sepolia ─────────────────────────────────────────────────
     // Sur Sepolia : MockERC20 + MockMorpho déployés par ce script.
     // EAS est à la même adresse sur Sepolia et Mainnet.
 
     address constant EAS_SEPOLIA = 0x4200000000000000000000000000000000000021;
 
-    // ── Paramètres FinBank ────────────────────────────────────────────────────
+    // Coinbase Verifications — Base Sepolia
+    address constant CB_INDEXER_SEPOLIA  = 0xd147a19c3B085Fb9B0c15D2EAAFC6CB086ea849B;
+    address constant CB_ATTESTER_SEPOLIA = 0xB5644397a9733f86Cacd928478B29b4cD6041C45;
+    bytes32 constant CB_SCHEMA_SEPOLIA   = 0x2f34a2ffe5f87b2f45fbc7c784896b768d77261e2f24f77341ae43751c765a69;
 
-    // Schema UID pour les attestations KYC FinBank.
-    // Créer via app.eas.eth avant le déploiement : (bool kycPassed, bool amlClear, uint8 tier)
-    bytes32 constant KYC_SCHEMA = bytes32(0); // TODO: remplacer après création du schéma
+    // ── Paramètres FinBank ────────────────────────────────────────────────────
 
     // Adresse de la trésorerie DAO (multisig Gnosis Safe — à créer avant mainnet).
     address constant TREASURY = address(0); // TODO: adresse du Safe
-
-    // Premier Attestor agréé (ex: Synaps, Fractal ID).
-    address constant INITIAL_ATTESTOR = address(0); // TODO: adresse prestataire KYC
 
     // Protocol fee initiale : 15%.
     uint256 constant FEE_BPS = 1_500;
@@ -156,14 +159,22 @@ contract DeployFinBank is Script {
         }
         console.log("");
 
-        // ── 1. EASChecker ─────────────────────────────────────────────────────
-        EASChecker checker = new EASChecker(eas, KYC_SCHEMA);
-        console.log("1. EASChecker      :", address(checker));
+        // ── 1. CoinbaseEASChecker ─────────────────────────────────────────────
+        // Utilise Coinbase Verifications (EAS on-chain) comme provider KYC.
+        // Les utilisateurs vérifient leur identité sur coinbase.com/onchain-verify.
+        address cbIndexer  = isMainnet ? CB_INDEXER_MAINNET  : CB_INDEXER_SEPOLIA;
+        address cbAttester = isMainnet ? CB_ATTESTER_MAINNET : CB_ATTESTER_SEPOLIA;
+        bytes32 cbSchema   = isMainnet ? CB_SCHEMA_MAINNET   : CB_SCHEMA_SEPOLIA;
 
-        if (INITIAL_ATTESTOR != address(0)) {
-            checker.approveAttestor(INITIAL_ATTESTOR);
-            console.log("   Attestor approved:", INITIAL_ATTESTOR);
-        }
+        CoinbaseEASChecker checker = new CoinbaseEASChecker(
+            eas,
+            cbIndexer,
+            cbAttester,
+            cbSchema
+        );
+        console.log("1. CoinbaseEASChecker :", address(checker));
+        console.log("   Indexer            :", cbIndexer);
+        console.log("   Attester           :", cbAttester);
 
         // ── 2. FBKToken ───────────────────────────────────────────────────────
         // Le deployer est minter temporaire — sera remplacé par FBKDistributor.
@@ -232,10 +243,10 @@ contract DeployFinBank is Script {
         // ── Résumé final ──────────────────────────────────────────────────────
 
         console.log("\n=== Deployment Summary ===");
-        console.log("Network         :", isMainnet ? "Base Mainnet" : "Base Sepolia");
-        console.log("EURC            :", eurc);
-        console.log("Morpho          :", morpho);
-        console.log("EASChecker      :", address(checker));
+        console.log("Network              :", isMainnet ? "Base Mainnet" : "Base Sepolia");
+        console.log("EURC                 :", eurc);
+        console.log("Morpho               :", morpho);
+        console.log("CoinbaseEASChecker   :", address(checker));
         console.log("FBKToken        :", address(fbk));
         console.log("FinBankVault    :", address(vault));
         console.log("VeFBK           :", address(veFBK));
@@ -246,12 +257,11 @@ contract DeployFinBank is Script {
         console.log("Reward rate     : 0.1 FBK/sec (~3.15M FBK/an)");
 
         console.log("\n=== Checklist avant mainnet ===");
-        console.log("[ ] Creer le schema KYC sur app.eas.eth");
-        console.log("[ ] Mettre a jour KYC_SCHEMA et redeployer");
         console.log("[ ] Configurer le Gnosis Safe (TREASURY)");
-        console.log("[ ] Approuver les Attestors KYC (Synaps, Fractal)");
+        console.log("[ ] Verifier coinbase.com/onchain-verify fonctionne sur mainnet");
         console.log("[ ] Decommmenter les transferOwnership() et redeployer");
         console.log("[ ] Verifier les contrats sur Basescan");
         console.log("[ ] Audit externe complet");
+        console.log("[ ] Note: users doivent aller sur coinbase.com/onchain-verify avant de deposer");
     }
 }

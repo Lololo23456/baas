@@ -2,6 +2,7 @@
 pragma solidity ^0.8.21;
 
 import {IEAS, Attestation} from "../interfaces/IEAS.sol";
+import {IEASChecker}       from "../interfaces/IEASChecker.sol";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EASChecker — Vérificateur d'attestations KYC pour FinBank
@@ -16,7 +17,7 @@ import {IEAS, Attestation} from "../interfaces/IEAS.sol";
 //   - Gouverné : la liste des Attestors est gérée par la DAO (owner)
 // ─────────────────────────────────────────────────────────────────────────────
 
-contract EASChecker {
+contract EASChecker is IEASChecker {
     // ── Erreurs ───────────────────────────────────────────────────────────────
     error NotOwner();
     error ZeroAddress();
