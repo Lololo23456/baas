@@ -362,23 +362,24 @@ export default function AccountView() {
     }
   }
 
-  /* ── Testnet KYC : selfRegister ─────────────────────────── */
+  /* ── Testnet KYC : whitelisting via API (pas de wallet required) ── */
   const handleSelfRegister = async () => {
-    if (registering) return
+    if (registering || !address) return
     setRegistering(true)
     setRegisterError(null)
     try {
-      const hash = await writeContractAsync({
-        address: CONTRACTS.EAS_CHECKER,
-        abi: EAS_CHECKER_ABI,
-        functionName: 'selfRegister',
+      const res = await fetch('/api/testnet-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
       })
-      await waitForTransactionReceipt(config, { hash })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Request failed')
+      // Attendre un peu puis refetch
+      await new Promise(r => setTimeout(r, 2000))
       refetchAuth()
     } catch (err) {
-      if (!(err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001')))) {
-        setRegisterError(extractError(err))
-      }
+      setRegisterError(extractError(err))
     } finally {
       setRegistering(false)
     }
