@@ -97,10 +97,14 @@ export default function AccountView() {
   const [verifyClicked, setVerifyClicked] = useState(false)
 
   /* ── On-chain reads ──────────────────────────────────────── */
+  // Poll every 15s so balances stay fresh without a manual reload
+  const POLL_MS = 15_000
+
   const { data: totalAssets, refetch: refetchTotalAssets } = useReadContract({
     address: CONTRACTS.VAULT,
     abi: VAULT_ABI,
     functionName: 'totalAssets',
+    query: { refetchInterval: POLL_MS },
   })
 
   const { data: userShares, refetch: refetchShares } = useReadContract({
@@ -108,7 +112,7 @@ export default function AccountView() {
     abi: VAULT_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   // Fix: userShares !== undefined (not !!userShares) — 0n is valid and falsy
@@ -117,7 +121,7 @@ export default function AccountView() {
     abi: VAULT_ABI,
     functionName: 'convertToAssets',
     args: userShares !== undefined ? [userShares] : undefined,
-    query: { enabled: userShares !== undefined },
+    query: { enabled: userShares !== undefined, refetchInterval: POLL_MS },
   })
 
   const { data: maxWithdrawable, refetch: refetchMaxWithdraw } = useReadContract({
@@ -125,7 +129,7 @@ export default function AccountView() {
     abi: VAULT_ABI,
     functionName: 'maxWithdraw',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: eurcBalance, refetch: refetchEurc } = useReadContract({
@@ -133,7 +137,7 @@ export default function AccountView() {
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
@@ -149,7 +153,7 @@ export default function AccountView() {
     abi: DISTRIBUTOR_ABI,
     functionName: 'earned',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: isAuthorized, refetch: refetchAuth } = useReadContract({
@@ -186,16 +190,26 @@ export default function AccountView() {
   }, [activeModal, depositStep, withdrawStep])
 
   /* ── Refetch all ─────────────────────────────────────────── */
-  const refetchAll = useCallback(() => {
-    refetchTotalAssets()
-    refetchShares()
-    refetchAssets()
-    refetchEurc()
-    refetchAllowance()
-    refetchMaxWithdraw()
-    refetchFbk()
-    refetchAuth()
-  }, [refetchTotalAssets, refetchShares, refetchAssets, refetchEurc, refetchAllowance, refetchMaxWithdraw, refetchFbk, refetchAuth])
+  const refetchAll = useCallback(async () => {
+    // Refetch shares first — userAssets depends on userShares
+    await refetchShares()
+    // Then refetch everything else in parallel
+    await Promise.all([
+      refetchTotalAssets(),
+      refetchAssets(),
+      refetchEurc(),
+      refetchAllowance(),
+      refetchMaxWithdraw(),
+      refetchFbk(),
+    ])
+  }, [refetchTotalAssets, refetchShares, refetchAssets, refetchEurc, refetchAllowance, refetchMaxWithdraw, refetchFbk])
+
+  /* ── Refetch after tx — waits then retries to beat RPC cache */
+  const refetchAfterTx = useCallback(async () => {
+    await refetchAll()
+    // Retry after 2s in case the RPC returned cached state right after mining
+    setTimeout(() => refetchAll(), 2000)
+  }, [refetchAll])
 
   /* ── Open modal (resets state) ───────────────────────────── */
   const openModal = (modal: 'deposit' | 'withdraw') => {
@@ -260,7 +274,7 @@ export default function AccountView() {
       await waitForTransactionReceipt(config, { hash: depositTx })
 
       setDepositStep('success')
-      refetchAll()
+      refetchAfterTx()
     } catch (err) {
       setDepositError(extractError(err))
       setDepositStep('error')
@@ -302,7 +316,7 @@ export default function AccountView() {
       await waitForTransactionReceipt(config, { hash: redeemTx })
 
       setWithdrawStep('success')
-      refetchAll()
+      refetchAfterTx()
     } catch (err) {
       setWithdrawError(extractError(err))
       setWithdrawStep('error')
@@ -349,8 +363,7 @@ export default function AccountView() {
         functionName: 'claim',
       })
       await waitForTransactionReceipt(config, { hash })
-      refetchFbk()
-      refetchAll()
+      refetchAfterTx()
     } catch (err) {
       if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
         // User rejected — silent
