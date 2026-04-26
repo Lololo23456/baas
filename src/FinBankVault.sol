@@ -170,6 +170,10 @@ contract FinBankVault {
         uint256 _feeBps
     ) {
         if (_feeBps > MAX_FEE_BPS) revert FeeTooHigh(_feeBps, MAX_FEE_BPS);
+        if (_asset    == address(0)) revert ZeroAddress();
+        if (_morpho   == address(0)) revert ZeroAddress();
+        if (_checker  == address(0)) revert ZeroAddress(); // [MEDIUM-2]
+        if (_treasury == address(0)) revert ZeroAddress();
 
         asset       = IERC20(_asset);
         morpho      = IMorpho(_morpho);

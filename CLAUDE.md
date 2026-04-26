@@ -52,7 +52,7 @@ Les mêmes principes que les banques coopératives (Crédit Mutuel, Credit Agric
 | Vault standard | **ERC-4626** | Interopérabilité totale DeFi |
 | Stablecoin | **EURC** (Circle) | Euro tokenisé, réserves auditées |
 | IBAN on-chain | **Monerium** | IBAN non-custodial, conversion EUR→EURC instantanée |
-| Identity / KYC | **EAS + Privado ID** | ZK proofs, Attestors agréés, zéro honeypot |
+| Identity / KYC | **Coinbase Verifications (EAS)** | 100M+ users, zéro friction, open source, nativement sur Base |
 | Wallet UX | **Base Smart Wallet** | Passkey (Face ID), sans seed phrase |
 | Gouvernance | **DAO + $FBK / $veFBK** | Fair Launch, Work & Governance, modèle veCRV |
 | Revenu | **15% du yield** | Buy-back $FBK + Fonds d'assurance |
@@ -71,9 +71,11 @@ src/
 ├── FinBankGovernor.sol       — Governor on-chain avec timelock intégré
 ├── interfaces/
 │   ├── IMorpho.sol           — Interface Morpho Blue
-│   └── IEAS.sol              — Interface EAS
+│   ├── IEAS.sol              — Interface EAS
+│   └── IEASChecker.sol       — Interface commune KYC checkers
 ├── utils/
-│   └── EASChecker.sol        — Vérificateur d'attestations KYC
+│   ├── EASChecker.sol        — Vérificateur KYC custom (tests + attestors manuels)
+│   └── CoinbaseEASChecker.sol — Vérificateur KYC via Coinbase Verifications (production)
 ├── mocks/
 │   ├── MockERC20.sol         — Faux EURC pour tests Sepolia (mint libre)
 │   └── MockMorpho.sol        — Faux Morpho Blue (supply/withdraw/addYield)
@@ -90,11 +92,12 @@ src/
 **170 tests — 0 échec**
 
 ### Fixes de sécurité appliqués
-- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout
+- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout, `easChecker` mutable + `setChecker()` pour upgrade DAO, `CheckerUpdated` event
 - **VeFBK** : vérification overflow uint128 avant tout cast
 - **FBKDistributor** : MAX_REWARD_RATE = 165e18 (plafond 7 jours min), notifyWithdraw clampé, event OwnershipTransferred, `SupplyCapReached` + claim() clampé au supply restant
 - **FinBankGovernor** : `CallFailed(uint256 index)` custom error, `require` → custom errors
-- **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event, `AttestationRegistered` event
+- **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event, `AttestationRegistered` event, implémente `IEASChecker`
+- **CoinbaseEASChecker** : nouveau — vérifie KYC via Coinbase Verifications (Indexer + EAS), attester validation, admin functions (setIndexer, setAttester, setSchema)
 - **FBKToken** : zero-address check dans transfer()
 - **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`), test `test_deposit_nonKYCReceiver_reverts()` ajouté, `test_redeem_withoutKYC_succeeds()` mis à jour (transfer shares au lieu de deposit direct)
 

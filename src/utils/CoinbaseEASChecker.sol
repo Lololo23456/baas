@@ -50,7 +50,7 @@ contract CoinbaseEASChecker is IEASChecker {
 
     error NotOwner();
     error ZeroAddress();
-    error InvalidAttester();
+    error ZeroSchema();  // Schema UID ne peut pas être bytes32(0)
 
     // ── Events ────────────────────────────────────────────────────────────────
 
@@ -100,6 +100,7 @@ contract CoinbaseEASChecker is IEASChecker {
         if (_eas              == address(0)) revert ZeroAddress();
         if (_indexer          == address(0)) revert ZeroAddress();
         if (_coinbaseAttester == address(0)) revert ZeroAddress();
+        if (_verifiedAccountSchema == bytes32(0)) revert ZeroSchema(); // [LOW-1]
 
         eas                   = IEAS(_eas);
         indexer               = ICoinbaseIndexer(_indexer);
@@ -157,6 +158,7 @@ contract CoinbaseEASChecker is IEASChecker {
 
     /// @notice Met à jour le schema UID (si Coinbase publie un nouveau schema).
     function setSchema(bytes32 _schema) external onlyOwner {
+        if (_schema == bytes32(0)) revert ZeroSchema(); // [MEDIUM-1]
         emit SchemaUpdated(verifiedAccountSchema, _schema);
         verifiedAccountSchema = _schema;
     }

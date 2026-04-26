@@ -390,6 +390,28 @@ contract FinBankVaultTest is Test {
         vault.setTreasury(address(0x999));
     }
 
+    function test_setChecker_onlyOwner() public {
+        vm.prank(ALICE);
+        vm.expectRevert(FinBankVault.NotOwner.selector);
+        vault.setChecker(address(0x999));
+    }
+
+    function test_setChecker_zeroAddress_reverts() public {
+        vm.expectRevert(FinBankVault.ZeroAddress.selector);
+        vault.setChecker(address(0));
+    }
+
+    function test_setChecker_success() public {
+        // Déploie un nouveau checker (EASChecker vide pour le test)
+        EASChecker newChecker = new EASChecker(address(eas), KYC_SCHEMA);
+        address oldChecker = address(vault.easChecker());
+
+        vault.setChecker(address(newChecker));
+
+        assertEq(address(vault.easChecker()), address(newChecker), "Checker should be updated");
+        assertTrue(address(vault.easChecker()) != oldChecker, "Old checker should be replaced");
+    }
+
     // ── Tests : Scénario complet ──────────────────────────────────────────────
 
     function test_fullScenario_freelanceJourney() public {
