@@ -1,6 +1,6 @@
 # Roadmap — FinBank
 
-> Dernière mise à jour : 2026-04-25
+> Dernière mise à jour : 2026-04-26
 
 ---
 
@@ -15,7 +15,7 @@
 
 ## Phase 1 — Smart Contracts & Backend ✅ COMPLÈTE
 
-### Smart Contracts (169 tests — 0 échec)
+### Smart Contracts (170 tests — 0 échec)
 - [x] `EASChecker.sol` — Vérificateur KYC on-chain
 - [x] `FBKToken.sol` — ERC-20 token de gouvernance
 - [x] `VeFBK.sol` — Vote-escrowed staking (modèle Curve)
@@ -60,34 +60,40 @@
 
 ---
 
-## Phase 3 — Frontend Web MVP
-**Objectif** : Interface utilisable par un non-technicien
-**Durée estimée** : 3-4 semaines
-**Stack** : Next.js 14 + wagmi + viem + TailwindCSS + shadcn/ui
+## Phase 3 — Frontend Web MVP ✅ COMPLÈTE
+**URL production** : https://frontend-fin-bank.vercel.app
+**Stack** : Next.js 14 + wagmi v2 + viem + TailwindCSS (inline styles)
 
-### Pages
-- [ ] `/` — Landing page (proposition de valeur)
-- [ ] `/app` — Dashboard principal
-  - Solde EURC déposé + yield en temps réel
-  - $FBK claimables
-  - Boutons Déposer / Retirer
-- [ ] `/onboarding` — Flux KYC
-  - Connexion wallet (Base Smart Wallet / MetaMask)
-  - Redirection vers Attestor
-  - Appel `registerAttestation()`
-- [ ] `/governance` — Propositions DAO
-  - Liste des votes actifs
-  - Interface de vote
-  - Création de proposition
-- [ ] `/stake` — VeFBK
-  - Créer/prolonger un lock
-  - Visualisation du veFBK décroissant
+### Pages déployées ✅
+- [x] `/` — Landing page (hero, piliers, how-it-works, comparatif, CTA)
+- [x] `/app` — Dashboard principal
+  - Solde EURC déposé + yield temps réel (lecture directe blockchain)
+  - $FBK claimables avec bouton Claim
+  - Boutons Déposer / Retirer (modals)
+  - Stats TVL, solde wallet, veFBK
+  - Faucet testnet (mint MockEURC gratuit)
+  - Tab on-chain proof (données brutes blockchain)
+- [x] `/governance` — Pouvoirs de la DAO (ce qu'elle peut/ne peut pas faire)
+- [x] `/stake` — Placeholder $veFBK (V2)
 
-### Intégrations
-- [ ] Connexion Base Smart Wallet (Passkey, Face ID)
-- [ ] Lecture temps réel via l'API backend
-- [ ] Transactions on-chain via wagmi
-- [ ] Notifications toast (dépôt confirmé, claim disponible...)
+### Intégrations ✅
+- [x] Connexion Base Smart Wallet + MetaMask (wagmi connectors)
+- [x] Lecture directe blockchain (pas de dépendance backend pour les reads)
+- [x] Deposit flow : allowance check → approve si besoin → deposit (2 txs chaînées)
+- [x] Withdraw : input EURC → `convertToShares()` on-chain → `redeem()`
+- [x] KYC gate : isAuthorized check, Deposit désactivé si non vérifié
+- [x] `vercel.json` — déploiement correct depuis monorepo
+- [x] Déployé et accessible publiquement sur Vercel
+
+### Fixes de sécurité / qualité (22 issues résolus) ✅
+- [x] Reentrancy guard sur deposit + redeem (FinBankVault)
+- [x] Zero-address checks partout (deposit, redeem, transfer, transferFrom, transferOwnership)
+- [x] `ReceiverNotAuthorized` — le receiver d'un dépôt doit aussi être KYC
+- [x] `SupplyCapReached` — claim() clampé au supply restant
+- [x] CORS restreint à `FRONTEND_URL` en production (backend)
+- [x] Custom errors cohérentes dans tous les contrats
+- [x] Events manquants ajoutés (AttestationRegistered, OwnershipTransferred)
+- [x] RPC URLs depuis variables d'environnement (frontend)
 
 ---
 
@@ -169,13 +175,13 @@
 ## Résumé visuel
 
 ```
-Aujourd'hui
+✅ Phase 0 ── Cadrage & architecture
+✅ Phase 1 ── Smart contracts (170 tests) + Backend
+✅ Phase 2 ── Sepolia + tests end-to-end (on-chain validé)
+✅ Phase 3 ── Frontend déployé → https://frontend-fin-bank.vercel.app
     │
-    ▼
-Phase 2 ── Sepolia + tests end-to-end          (~2 semaines)
-    │
-    ▼
-Phase 3 ── Frontend web MVP                    (~4 semaines)
+    ▼  ← ON EST ICI (2026-04-26)
+Phase 3.5 ── Domaine custom + polish UX
     │
     ▼
 Phase 4 ── KYC Synaps + IBAN Monerium          (~6 semaines)
@@ -190,4 +196,16 @@ Phase 6 ── Croissance + app mobile             (continu)
 Phase 7 ── Licence EME + produits avancés      (long terme)
 ```
 
-**De Sepolia au Mainnet : environ 4-5 mois si tout va bien.**
+**Du point actuel au Mainnet : environ 3-4 mois.**
+
+---
+
+## Phase 3.5 — Polish & Infrastructure (prochaine étape immédiate)
+
+- [ ] Acheter un domaine (finbank.app ou finbank.xyz)
+- [ ] Configurer le domaine sur Vercel
+- [ ] Contacter Synaps (email) — intégration KYC
+- [ ] Contacter Monerium (email) — intégration IBAN
+- [ ] Frontend V1.5 : onglet historique des transactions (brancher API backend)
+- [ ] Frontend V1.5 : interface de vote DAO (lire proposals depuis API)
+- [ ] Frontend V1.5 : responsive mobile

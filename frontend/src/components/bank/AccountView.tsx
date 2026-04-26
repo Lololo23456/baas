@@ -39,7 +39,7 @@ function extractError(err: unknown): string {
       return 'Transaction rejected in wallet.'
     }
     if (msg.includes('NotAuthorized') || msg.includes('not authorized') || msg.includes('isAuthorized')) {
-      return 'Account not verified. Complete KYC verification below first.'
+      return 'Account not verified. KYC verification is required to deposit.'
     }
     if (msg.includes('insufficient')) return 'Insufficient balance.'
     if (msg.includes('reverted'))     return 'Transaction reverted — check your balance and network.'
@@ -82,11 +82,6 @@ export default function AccountView() {
   // Faucet state (testnet only)
   const [minting, setMinting] = useState(false)
   const [mintSuccess, setMintSuccess] = useState(false)
-
-  // KYC state (testnet: user pastes their attestation UID)
-  const [kycUid, setKycUid] = useState('')
-  const [kycStep, setKycStep] = useState<'idle' | 'registering' | 'success' | 'error'>('idle')
-  const [kycError, setKycError] = useState<string | null>(null)
 
   // Faucet error
   const [mintError, setMintError] = useState<string | null>(null)
@@ -157,13 +152,6 @@ export default function AccountView() {
 
   /* ── Write hook (shared) ─────────────────────────────────── */
   const { writeContractAsync } = useWriteContract()
-
-  /* ── Reset KYC state on wallet change ───────────────────── */
-  useEffect(() => {
-    setKycUid('')
-    setKycStep('idle')
-    setKycError(null)
-  }, [address])
 
   /* ── Close modal on Escape key ───────────────────────────── */
   useEffect(() => {
@@ -328,36 +316,6 @@ export default function AccountView() {
     }
   }
 
-  /* ── KYC registration — user pastes attestation UID ────── */
-  const handleRegisterKyc = async () => {
-    if (!address || !kycUid.trim() || kycStep === 'registering') return
-
-    // Validate: must be a valid bytes32 hex string
-    const uid = kycUid.trim()
-    if (!/^0x[0-9a-fA-F]{64}$/.test(uid)) {
-      setKycError('Invalid UID format. Expected 0x followed by 64 hex characters.')
-      return
-    }
-
-    setKycStep('registering')
-    setKycError(null)
-
-    try {
-      const hash = await writeContractAsync({
-        address: CONTRACTS.EAS_CHECKER,
-        abi: EAS_CHECKER_ABI,
-        functionName: 'registerAttestation',
-        args: [uid as `0x${string}`],
-      })
-      await waitForTransactionReceipt(config, { hash })
-      setKycStep('success')
-      refetchAuth()
-    } catch (err) {
-      setKycError(extractError(err))
-      setKycStep('error')
-    }
-  }
-
   /* ── Claim $FBK ──────────────────────────────────────────── */
   const handleClaim = async () => {
     if (!pendingFbk || pendingFbk === 0n || claiming) return
@@ -494,62 +452,29 @@ export default function AccountView() {
             </div>
           </div>
 
-          {/* ── KYC banner — shown when not yet authorized ─── */}
-          {isAuthorized === false && kycStep !== 'success' && (
+          {/* ── KYC status indicator ──────────────────────── */}
+          {isAuthorized === false && (
             <div style={{
-              border: '1px solid #FDE68A',
-              background: '#FFFBEB',
-              borderRadius: 16,
-              padding: '20px 24px',
+              border: '1px solid #E2E8F0',
+              background: '#F8FAFC',
+              borderRadius: 12,
+              padding: '14px 18px',
               marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 16 }}>🔑</span>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#92400E' }}>
-                  Account verification required
+              <span style={{ fontSize: 16 }}>🔒</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 2 }}>
+                  Verification required to deposit
                 </p>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: '#92400E',
-                  background: '#FDE68A', borderRadius: 4, padding: '2px 6px',
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                }}>Testnet</span>
-              </div>
-              <p style={{ fontSize: 12, color: '#B45309', lineHeight: 1.6, marginBottom: 16 }}>
-                Deposits require a KYC attestation. On testnet, ask the deployer to generate one for your wallet, then paste the attestation UID below.
-              </p>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <input
-                  className="input"
-                  placeholder="0x... (attestation UID, 66 chars)"
-                  value={kycUid}
-                  onChange={e => {
-                    setKycUid(e.target.value)
-                    if (kycStep === 'error') { setKycStep('idle'); setKycError(null) }
-                  }}
-                  style={{ flex: 1, fontSize: 12, fontFamily: 'monospace' }}
-                />
-                <button
-                  onClick={handleRegisterKyc}
-                  disabled={!kycUid.trim() || kycStep === 'registering'}
-                  className="btn btn-dark"
-                  style={{ fontSize: 12, padding: '10px 18px', whiteSpace: 'nowrap', flexShrink: 0, opacity: (!kycUid.trim() || kycStep === 'registering') ? 0.5 : 1 }}
-                >
-                  {kycStep === 'registering' ? 'Registering…' : 'Verify'}
-                </button>
-              </div>
-              {kycError && (
-                <p role="alert" aria-live="polite" style={{ fontSize: 12, color: '#EF4444', marginTop: 8 }}>
-                  {kycError}
+                <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.5 }}>
+                  Identity verification (KYC) will be handled automatically during onboarding. Withdrawals are always available.
                 </p>
-              )}
-              <p style={{ fontSize: 11, color: '#D97706', marginTop: 10 }}>
-                💡 Your wallet address: <span style={{ fontFamily: 'monospace' }}>{address}</span>
-              </p>
+              </div>
             </div>
           )}
 
-          {/* ── KYC success indicator ──────────────────────── */}
-          {(isAuthorized === true || kycStep === 'success') && (
+          {isAuthorized === true && (
             <div style={{
               background: '#F0FDF4', border: '1px solid #BBF7D0',
               borderRadius: 12, padding: '10px 16px',

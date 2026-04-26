@@ -78,7 +78,7 @@ src/
 │   ├── MockERC20.sol         — Faux EURC pour tests Sepolia (mint libre)
 │   └── MockMorpho.sol        — Faux Morpho Blue (supply/withdraw/addYield)
 ├── test/
-│   ├── FinBankVault.t.sol    — 15 tests Foundry
+│   ├── FinBankVault.t.sol    — 16 tests Foundry
 │   ├── FBKToken.t.sol        — 33 tests Foundry
 │   ├── VeFBK.t.sol           — 46 tests Foundry
 │   ├── FBKDistributor.t.sol  — 33 tests Foundry
@@ -87,15 +87,16 @@ src/
     └── Deploy.s.sol          — Déploiement complet (détecte Mainnet/Sepolia via chainId)
 ```
 
-**169 tests — 0 échec**
+**170 tests — 0 échec**
 
 ### Fixes de sécurité appliqués
-- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred
+- **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout
 - **VeFBK** : vérification overflow uint128 avant tout cast
-- **FBKDistributor** : MAX_REWARD_RATE = 165e18 (plafond 7 jours min), notifyWithdraw clampé, event OwnershipTransferred
-- **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event
+- **FBKDistributor** : MAX_REWARD_RATE = 165e18 (plafond 7 jours min), notifyWithdraw clampé, event OwnershipTransferred, `SupplyCapReached` + claim() clampé au supply restant
+- **FinBankGovernor** : `CallFailed(uint256 index)` custom error, `require` → custom errors
+- **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event, `AttestationRegistered` event
 - **FBKToken** : zero-address check dans transfer()
-- **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`)
+- **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`), test `test_deposit_nonKYCReceiver_reverts()` ajouté, `test_redeem_withoutKYC_succeeds()` mis à jour (transfer shares au lieu de deposit direct)
 
 ### Commandes Foundry
 ```bash
@@ -259,7 +260,8 @@ npx vercel --prod --yes
 │   ├── FinBank_Code_Explique_Ligne_Par_Ligne.pdf  # Explication code pour fondateur ✅
 │   └── conversations/
 │       ├── 2026-04-24-security-audit-deploy.md
-│       └── 2026-04-25-mocks-backend-review.md
+│       ├── 2026-04-25-mocks-backend-review.md
+│       └── 2026-04-26-security-review-kyc-cleanup.md
 ├── src/                                   # Smart contracts Solidity ✅
 │   ├── FinBankVault.sol
 │   ├── FBKToken.sol
@@ -269,7 +271,7 @@ npx vercel --prod --yes
 │   ├── interfaces/
 │   ├── utils/EASChecker.sol
 │   ├── mocks/                             # MockERC20 + MockMorpho (Sepolia)
-│   ├── test/                              # 169 tests Foundry
+│   ├── test/                              # 170 tests Foundry
 │   └── script/Deploy.s.sol
 └── backend/                               # Indexeur + API off-chain ✅
     ├── src/

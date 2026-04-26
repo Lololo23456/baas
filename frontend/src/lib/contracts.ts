@@ -137,11 +137,4 @@ export const EAS_CHECKER_ABI = [
     inputs: [{ name: 'user', type: 'address' }],
     outputs: [{ name: '', type: 'bool' }],
   },
-  {
-    name: 'registerAttestation',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'attestationUID', type: 'bytes32' }],
-    outputs: [],
-  },
 ] as const
