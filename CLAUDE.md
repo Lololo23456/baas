@@ -89,7 +89,7 @@ src/
     └── Deploy.s.sol          — Déploiement complet (détecte Mainnet/Sepolia via chainId)
 ```
 
-**174 tests — 0 échec**
+**181 tests — 0 échec**
 
 ### Fixes de sécurité appliqués
 - **FinBankVault** : reentrancy guard (deposit + redeem), zero-address checks (deposit + redeem receiver + transfer + transferFrom + transferOwnership), allowance check avec custom error, distributor hooks sur transfer/transferFrom, event OwnershipTransferred, `ReceiverNotAuthorized` (le receiver d'un dépôt doit aussi avoir passé le KYC), `require` → custom errors partout, `easChecker` mutable + `setChecker()` pour upgrade DAO, `CheckerUpdated` event, suppression WAD inutilisé, suppression ExecutionFailed inutilisé
@@ -99,6 +99,7 @@ src/
 - **EASChecker** : registerAttestation() utilise custom errors, ZeroAddress error ajouté, transferOwnership avec zero-address check + event, `AttestationRegistered` event, implémente `IEASChecker`
 - **CoinbaseEASChecker** : nouveau — vérifie KYC via Coinbase Verifications (Indexer + EAS), attester validation, `ZeroSchema` error constructor + setSchema(), admin functions (setIndexer, setAttester, setSchema)
 - **FBKToken** : zero-address check dans transfer() et transferFrom()
+- **EASChecker** : `allowlisted` mapping + `selfRegister()` (testnet bypass sans EAS) + `setAllowed(address, bool)` owner, `Allowlisted` event
 - **Tests** : timestamps absolus dans FBKDistributor.t.sol et VeFBK.t.sol (fix quirk `via_ir` + `vm.warp`), test `test_deposit_nonKYCReceiver_reverts()` ajouté, `test_redeem_withoutKYC_succeeds()` mis à jour, `test_transferFrom_toZeroAddress_reverts()` ajouté
 
 ### Commandes Foundry
@@ -333,18 +334,18 @@ npx vercel --prod --yes
 
 ## Déploiement Base Sepolia — ACTIF ✅
 
-### Adresses des contrats (Base Sepolia — 2ème déploiement, bug MockMorpho corrigé)
+### Adresses des contrats (Base Sepolia — 3ème déploiement, EASChecker avec allowlist/selfRegister)
 
 | Contrat | Adresse |
 |---|---|
-| MockEURC | `0x914bD84678ABc7ace192ba0f27Ac7a5e5920e218` |
-| MockMorpho | `0xcf235aA8485bddCCB8d276a8AC97bD78521974ca` |
-| EASChecker | `0x7E069926A4cf1D6EaF6FA8823c91B356CDCC1b03` |
-| FBKToken | `0x9B0a0f72D836AcD51DAD8efE31aa667569090F18` |
-| FinBankVault | `0x5C763aA7536BF5D67155553BD709Ca66187CDfDd` |
-| VeFBK | `0x977f97eb4d637BE63fFec069329673358acF4A6F` |
-| FBKDistributor | `0xeba8C8720cc1fA0AC51bE9F618ebEe9d1ecFBc3f` |
-| FinBankGovernor | `0x1aE5609aff8bA236ba601E7554135F35f3ab88F0` |
+| MockEURC | `0xB17084217fcd338C60a3e3394a97CB978c803d03` |
+| MockMorpho | `0xA7c49e53573566B3b0143CDe8DCdC05Db316aBd5` |
+| EASChecker | `0x51210B5837521f1254F88Bcd77D4BBEB2b0254c0` |
+| FBKToken | `0x21447eB0497cE52Cd508B57826d417707Ee47878` |
+| FinBankVault | `0x1719f83defCfEde745fa80c8D16B7cf56f2aD1e4` |
+| VeFBK | `0x99AD12d2A7C5F74775C5b7CB2fEc6e5a869f2FE9` |
+| FBKDistributor | `0x28BE449B18b9eC2ADff49f13acAB048FaD3D2FBD` |
+| FinBankGovernor | `0xe2c80c50e81c3Eb0B0a6150dcCC4066a6aD6dab4` |
 
 - **Wallet deployer** : `0x8e4A6f0866904D9edB6bb5e2CD56199EAfadEEA6`
 - **RPC** : `https://sepolia.base.org` (public, pas de limite eth_getLogs)
