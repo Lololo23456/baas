@@ -52,7 +52,6 @@ contract FinBankVault {
 
     // ── Constantes ────────────────────────────────────────────────────────────
 
-    uint256 public constant WAD         = 1e18;
     uint256 public constant MAX_FEE_BPS = 3_000; // 30% — plafond absolu
     uint256 public constant BPS_BASE    = 10_000;
 
@@ -72,7 +71,6 @@ contract FinBankVault {
     error ZeroShares();
     error ZeroAssets();
     error ReceiverNotAuthorized(address receiver); // KYC manquant sur le receveur des shares
-    error ExecutionFailed(uint256 index);           // Réservé pour usage futur migration
 
     // ── Events ────────────────────────────────────────────────────────────────
 

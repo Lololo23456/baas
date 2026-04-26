@@ -89,6 +89,7 @@ contract FBKToken {
     }
 
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        if (to == address(0)) revert ZeroAddress(); // Même protection que transfer()
         uint256 allowed = allowance[from][msg.sender];
         if (allowed < amount) revert InsufficientAllowance(amount, allowed);
         if (balanceOf[from] < amount) revert InsufficientBalance(amount, balanceOf[from]);

@@ -78,6 +78,7 @@ export default function AccountView() {
 
   // Claim state
   const [claiming, setClaiming] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
 
   // Faucet state (testnet only)
   const [minting, setMinting] = useState(false)
@@ -85,6 +86,9 @@ export default function AccountView() {
 
   // Faucet error
   const [mintError, setMintError] = useState<string | null>(null)
+
+  // KYC verification flow
+  const [verifyClicked, setVerifyClicked] = useState(false)
 
   /* ── On-chain reads ──────────────────────────────────────── */
   const { data: totalAssets, refetch: refetchTotalAssets } = useReadContract({
@@ -152,6 +156,17 @@ export default function AccountView() {
 
   /* ── Write hook (shared) ─────────────────────────────────── */
   const { writeContractAsync } = useWriteContract()
+
+  /* ── KYC polling — dès que l'user clique "Verify with Coinbase",
+        on poll isAuthorized toutes les 5s jusqu'à ce que ça passe ── */
+  useEffect(() => {
+    if (!verifyClicked || isAuthorized !== false) return
+    const interval = setInterval(() => { refetchAuth() }, 5_000)
+    return () => clearInterval(interval)
+  }, [verifyClicked, isAuthorized, refetchAuth])
+
+  // Reset verifyClicked quand le wallet change
+  useEffect(() => { setVerifyClicked(false) }, [address])
 
   /* ── Close modal on Escape key ───────────────────────────── */
   useEffect(() => {
@@ -320,6 +335,7 @@ export default function AccountView() {
   const handleClaim = async () => {
     if (!pendingFbk || pendingFbk === 0n || claiming) return
     setClaiming(true)
+    setClaimError(null)
     try {
       const hash = await writeContractAsync({
         address: CONTRACTS.DISTRIBUTOR,
@@ -329,8 +345,12 @@ export default function AccountView() {
       await waitForTransactionReceipt(config, { hash })
       refetchFbk()
       refetchAll()
-    } catch {
-      // Silent — user likely rejected
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
+        // User rejected — silent
+      } else {
+        setClaimError(extractError(err))
+      }
     } finally {
       setClaiming(false)
     }
@@ -432,7 +452,7 @@ export default function AccountView() {
               <button
                 onClick={() => openModal('deposit')}
                 disabled={isAuthorized === false}
-                title={isAuthorized === false ? 'Complete account verification below first' : undefined}
+                title={isAuthorized === false ? 'Complete KYC verification via Coinbase first' : undefined}
                 className="btn"
                 style={{
                   background: '#FFFFFF', color: '#0F172A', flex: 1, fontSize: 13, padding: '12px 20px',
@@ -452,24 +472,68 @@ export default function AccountView() {
             </div>
           </div>
 
-          {/* ── KYC status indicator ──────────────────────── */}
-          {isAuthorized === false && (
+          {/* ── KYC status ────────────────────────────────── */}
+          {isAuthorized === false && !verifyClicked && (
             <div style={{
               border: '1px solid #E2E8F0',
               background: '#F8FAFC',
               borderRadius: 12,
-              padding: '14px 18px',
+              padding: '16px 20px',
               marginBottom: 16,
-              display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <span style={{ fontSize: 16 }}>🔒</span>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 2 }}>
-                  Verification required to deposit
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 15 }}>🔒</span>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
+                  Verify your identity to deposit
                 </p>
-                <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.5 }}>
-                  Identity verification (KYC) will be handled automatically during onboarding. Withdrawals are always available.
+              </div>
+              <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
+                One-time verification via Coinbase. Takes 2 minutes. Withdrawals are always available regardless.
+              </p>
+              <a
+                href="https://coinbase.com/onchain-verify"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setVerifyClicked(true)}
+                className="btn btn-dark"
+                style={{ fontSize: 12, padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              >
+                Verify with Coinbase
+                <span style={{ fontSize: 11, opacity: 0.7 }}>↗</span>
+              </a>
+            </div>
+          )}
+
+          {isAuthorized === false && verifyClicked && (
+            <div style={{
+              border: '1px solid #DBEAFE',
+              background: '#EFF6FF',
+              borderRadius: 12,
+              padding: '16px 20px',
+              marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 14, display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
+                  Waiting for verification…
                 </p>
+              </div>
+              <p style={{ fontSize: 12, color: '#3B82F6', lineHeight: 1.6, marginBottom: 14 }}>
+                Complete the process on Coinbase, then come back. We check automatically every 5 seconds.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#60A5FA' }}>
+                  <span className="live-dot" style={{ background: '#60A5FA' }} />
+                  Checking…
+                </span>
+                <a
+                  href="https://coinbase.com/onchain-verify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'underline' }}
+                >
+                  Open Coinbase again ↗
+                </a>
               </div>
             </div>
           )}
@@ -504,14 +568,19 @@ export default function AccountView() {
                 </p>
                 <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{sub}</p>
                 {action && pendingFbk !== undefined && pendingFbk > 0n && (
-                  <button
-                    onClick={handleClaim}
-                    disabled={claiming}
-                    className="btn btn-ghost"
-                    style={{ marginTop: 10, fontSize: 11, padding: '6px 12px', width: '100%', opacity: claiming ? 0.5 : 1 }}
-                  >
-                    {claiming ? 'Claiming…' : 'Claim'}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleClaim}
+                      disabled={claiming}
+                      className="btn btn-ghost"
+                      style={{ marginTop: 10, fontSize: 11, padding: '6px 12px', width: '100%', opacity: claiming ? 0.5 : 1 }}
+                    >
+                      {claiming ? 'Claiming…' : 'Claim'}
+                    </button>
+                    {claimError && (
+                      <p style={{ fontSize: 11, color: '#EF4444', marginTop: 6, textAlign: 'center' }}>{claimError}</p>
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -636,7 +705,7 @@ export default function AccountView() {
             { label: 'FBKDistributor.sol',   addr: CONTRACTS.DISTRIBUTOR },
             { label: 'VeFBK.sol',            addr: CONTRACTS.VE_FBK     },
             { label: 'FinBankGovernor.sol',  addr: CONTRACTS.GOVERNOR    },
-            { label: 'EASChecker.sol',       addr: CONTRACTS.EAS_CHECKER },
+            { label: 'CoinbaseEASChecker.sol', addr: CONTRACTS.EAS_CHECKER },
           ].map(({ label, addr }) => (
             <div key={label} className="card" style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>

@@ -226,6 +226,18 @@ contract FBKTokenTest is Test {
         token.transferFrom(ALICE, TREASURY, 200 * ONE_FBK);
     }
 
+    function test_transferFrom_toZeroAddress_reverts() public {
+        vm.prank(MINTER);
+        token.mint(ALICE, 1_000 * ONE_FBK);
+
+        vm.prank(ALICE);
+        token.approve(BOB, 500 * ONE_FBK);
+
+        vm.prank(BOB);
+        vm.expectRevert(FBKToken.ZeroAddress.selector);
+        token.transferFrom(ALICE, address(0), 100 * ONE_FBK);
+    }
+
     function test_approve_emitsApprovalEvent() public {
         vm.prank(ALICE);
         vm.expectEmit(true, true, false, true);
