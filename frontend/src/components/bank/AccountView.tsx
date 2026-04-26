@@ -38,8 +38,11 @@ function extractError(err: unknown): string {
     if (msg.includes('User rejected') || msg.includes('user rejected') || msg.includes('4001')) {
       return 'Transaction rejected in wallet.'
     }
+    if (msg.includes('NotAuthorized') || msg.includes('not authorized') || msg.includes('isAuthorized')) {
+      return 'Account not verified. Complete KYC verification below first.'
+    }
     if (msg.includes('insufficient')) return 'Insufficient balance.'
-    if (msg.includes('reverted'))     return 'Contract reverted — check your balance.'
+    if (msg.includes('reverted'))     return 'Transaction reverted — check your balance and network.'
   }
   return 'Transaction failed. Please try again.'
 }
@@ -84,6 +87,9 @@ export default function AccountView() {
   const [kycUid, setKycUid] = useState('')
   const [kycStep, setKycStep] = useState<'idle' | 'registering' | 'success' | 'error'>('idle')
   const [kycError, setKycError] = useState<string | null>(null)
+
+  // Faucet error
+  const [mintError, setMintError] = useState<string | null>(null)
 
   /* ── On-chain reads ──────────────────────────────────────── */
   const { data: totalAssets, refetch: refetchTotalAssets } = useReadContract({
@@ -151,6 +157,13 @@ export default function AccountView() {
 
   /* ── Write hook (shared) ─────────────────────────────────── */
   const { writeContractAsync } = useWriteContract()
+
+  /* ── Reset KYC state on wallet change ───────────────────── */
+  useEffect(() => {
+    setKycUid('')
+    setKycStep('idle')
+    setKycError(null)
+  }, [address])
 
   /* ── Close modal on Escape key ───────────────────────────── */
   useEffect(() => {
@@ -292,6 +305,7 @@ export default function AccountView() {
     if (!address || minting) return
     setMinting(true)
     setMintSuccess(false)
+    setMintError(null)
     try {
       const hash = await writeContractAsync({
         address: CONTRACTS.MOCK_EURC,
@@ -304,8 +318,11 @@ export default function AccountView() {
       refetchEurc()
       // Reset success indicator after 3s
       setTimeout(() => setMintSuccess(false), 3000)
-    } catch {
-      // Silent — user likely rejected
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
+        return // Silent on user rejection only
+      }
+      setMintError('Faucet failed. Make sure you have Sepolia ETH for gas.')
     } finally {
       setMinting(false)
     }
@@ -456,8 +473,14 @@ export default function AccountView() {
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => openModal('deposit')}
+                disabled={isAuthorized === false}
+                title={isAuthorized === false ? 'Complete account verification below first' : undefined}
                 className="btn"
-                style={{ background: '#FFFFFF', color: '#0F172A', flex: 1, fontSize: 13, padding: '12px 20px' }}
+                style={{
+                  background: '#FFFFFF', color: '#0F172A', flex: 1, fontSize: 13, padding: '12px 20px',
+                  opacity: isAuthorized === false ? 0.4 : 1,
+                  cursor: isAuthorized === false ? 'not-allowed' : 'pointer',
+                }}
               >
                 Deposit
               </button>
@@ -625,6 +648,11 @@ export default function AccountView() {
               {minting ? 'Minting…' : mintSuccess ? '✓ Minted!' : '+ 1,000 EURC'}
             </button>
           </div>
+          {mintError && (
+            <p role="alert" aria-live="polite" style={{ fontSize: 12, color: '#EF4444', marginTop: 8, paddingLeft: 4 }}>
+              {mintError}
+            </p>
+          )}
 
         </div>
       )}

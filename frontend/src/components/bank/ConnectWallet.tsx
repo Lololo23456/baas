@@ -16,7 +16,7 @@ export default function ConnectWallet() {
       alignItems: 'center',
       justifyContent: 'center',
       background: '#F8FAFC',
-      padding: 24,
+      padding: '88px 24px 24px', // 64px navbar + 24px
     }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
 

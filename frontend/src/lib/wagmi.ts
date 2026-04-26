@@ -2,6 +2,10 @@ import { http, createConfig } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 import { coinbaseWallet, injected } from 'wagmi/connectors'
 
+// Use env var RPC URLs in production (Alchemy/Infura), fallback to public nodes
+const RPC_SEPOLIA = process.env.NEXT_PUBLIC_RPC_SEPOLIA ?? 'https://sepolia.base.org'
+const RPC_BASE    = process.env.NEXT_PUBLIC_RPC_BASE    ?? 'https://mainnet.base.org'
+
 export const config = createConfig({
   chains: [baseSepolia, base],
   connectors: [
@@ -14,8 +18,8 @@ export const config = createConfig({
     injected(),
   ],
   transports: {
-    [base.id]:        http('https://mainnet.base.org'),
-    [baseSepolia.id]: http('https://sepolia.base.org'),
+    [base.id]:        http(RPC_BASE),
+    [baseSepolia.id]: http(RPC_SEPOLIA),
   },
 })
 

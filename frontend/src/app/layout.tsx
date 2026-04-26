@@ -15,11 +15,19 @@ export const metadata: Metadata = {
   title: 'FinBank — Banking rebuilt from first principles',
   description:
     'The first financial institution of the digital era built on the right principles. Total transparency, collective ownership, unbreakable foundations.',
+  keywords: ['fintech', 'DeFi', 'banking', 'blockchain', 'cooperative', 'EURC', 'Base'],
   openGraph: {
-    title: 'FinBank',
-    description: 'Banking rebuilt from first principles.',
+    title: 'FinBank — Banking rebuilt from first principles',
+    description: 'Total transparency, collective ownership, unbreakable foundations.',
     type: 'website',
+    siteName: 'FinBank',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'FinBank — Banking rebuilt from first principles',
+    description: 'Total transparency, collective ownership, unbreakable foundations.',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

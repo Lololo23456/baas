@@ -396,7 +396,7 @@ export default function Home() {
           <div style={{ display: 'flex', gap: 20 }}>
             {[
               { label: 'Contracts', href: 'https://sepolia.basescan.org/address/0x5C763aA7536BF5D67155553BD709Ca66187CDfDd' },
-              { label: 'GitHub', href: '#' },
+              { label: 'GitHub', href: 'https://github.com/Lololo23456/baas' },
               { label: 'Governance', href: '/governance' },
             ].map(({ label, href }) => (
               <a

@@ -10,8 +10,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     defaultOptions: {
       queries: {
         staleTime: 10_000,
-        refetchInterval: 15_000,
-        retry: 1,                  // 1 retry max on RPC errors (default=3 is too slow)
+        // No global refetchInterval — each useReadContract sets its own polling if needed
+        retry: 1,        // 1 retry max on RPC errors (default=3 hammers the RPC)
         retryDelay: 2_000,
       },
     },
