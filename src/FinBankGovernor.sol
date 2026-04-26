@@ -98,6 +98,7 @@ contract FinBankGovernor {
     error ArrayLengthMismatch();
     error InvalidParameter();
     error OnlyGovernance();
+    error CallFailed(uint256 index);
 
     // ── Events ────────────────────────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ contract FinBankGovernor {
 
         for (uint256 i = 0; i < p.targets.length; i++) {
             (bool success,) = p.targets[i].call{value: p.values[i]}(p.calldatas[i]);
-            require(success, "FinBankGovernor: call failed");
+            if (!success) revert CallFailed(i);
         }
 
         emit ProposalExecuted(proposalId);
@@ -259,7 +260,7 @@ contract FinBankGovernor {
 
     function getState(uint256 proposalId) public view returns (ProposalState) {
         Proposal storage p = proposals[proposalId];
-        require(p.id != 0, "FinBankGovernor: unknown proposal");
+        if (p.id == 0) revert InvalidParameter();
 
         if (p.canceled)  return ProposalState.Canceled;
         if (p.executed)  return ProposalState.Executed;

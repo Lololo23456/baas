@@ -283,17 +283,32 @@ contract FinBankVaultTest is Test {
     }
 
     function test_redeem_withoutKYC_succeeds() public {
-        // Charlie n'a pas de KYC mais si il avait des shares, il devrait pouvoir retirer
-        // Simule: on lui donne des shares directement (cas migration)
+        // Censure-résistance : un wallet sans KYC peut toujours retirer ses shares.
+        // Scénario : Alice dépose, puis transfère ses shares à Charlie (non-KYC).
+        // Le dépôt direct vers un receiver non-KYC est maintenant bloqué (fix compliance).
         vm.prank(ALICE);
-        vault.deposit(100_000e6, CHARLIE); // Alice dépose pour Charlie
+        vault.deposit(100_000e6, ALICE);
 
-        // Charlie PEUT retirer même sans KYC — censure-résistance
-        uint256 charlieShares = vault.balanceOf(CHARLIE);
+        uint256 aliceShares = vault.balanceOf(ALICE);
+
+        // Alice transfère ses shares à Charlie via transfer() ERC-20 standard
+        vm.prank(ALICE);
+        vault.transfer(CHARLIE, aliceShares);
+        assertEq(vault.balanceOf(CHARLIE), aliceShares, "Charlie should have received shares");
+
+        // Charlie PEUT retirer même sans KYC — censure-résistance garantie
         vm.prank(CHARLIE);
-        uint256 assets = vault.redeem(charlieShares, CHARLIE, CHARLIE);
-
+        uint256 assets = vault.redeem(aliceShares, CHARLIE, CHARLIE);
         assertGt(assets, 0, "Charlie should receive assets despite no KYC");
+    }
+
+    function test_deposit_nonKYCReceiver_reverts() public {
+        // Fix compliance : impossible de déposer pour un receiver sans KYC
+        vm.prank(ALICE);
+        vm.expectRevert(
+            abi.encodeWithSelector(FinBankVault.ReceiverNotAuthorized.selector, CHARLIE)
+        );
+        vault.deposit(100_000e6, CHARLIE);
     }
 
     function test_redeem_exceedsBalance_reverts() public {

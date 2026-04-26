@@ -71,6 +71,8 @@ contract FinBankVault {
     error FeeTooHigh(uint256 feeBps, uint256 maxFeeBps);
     error ZeroShares();
     error ZeroAssets();
+    error ReceiverNotAuthorized(address receiver); // KYC manquant sur le receveur des shares
+    error ExecutionFailed(uint256 index);           // Réservé pour usage futur migration
 
     // ── Events ────────────────────────────────────────────────────────────────
 
@@ -165,7 +167,7 @@ contract FinBankVault {
         address _treasury,
         uint256 _feeBps
     ) {
-        require(_feeBps <= MAX_FEE_BPS, "Fee exceeds max");
+        if (_feeBps > MAX_FEE_BPS) revert FeeTooHigh(_feeBps, MAX_FEE_BPS);
 
         asset       = IERC20(_asset);
         morpho      = IMorpho(_morpho);
@@ -265,6 +267,10 @@ contract FinBankVault {
         // 1. Vérification KYC — bloque les dépôts sans attestation valide
         //    (les retraits ne sont jamais bloqués — voir withdraw())
         if (!easChecker.isAuthorized(msg.sender)) revert NotAuthorized(msg.sender);
+        // Si le receveur des shares est différent du deposant, il doit aussi être KYC.
+        // Cela évite qu'un wallet KYC dépose pour un wallet non-KYC (conformité réglementaire).
+        if (receiver != msg.sender && !easChecker.isAuthorized(receiver))
+            revert ReceiverNotAuthorized(receiver);
 
         // 2. Accrue les fees sur le yield généré depuis le dernier checkpoint
         _accrueFees();

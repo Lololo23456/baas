@@ -16,6 +16,8 @@ const envSchema = z.object({
   EAS_CHECKER_ADDRESS:   z.string().regex(/^0x[0-9a-fA-F]{40}$/),
   START_BLOCK:           z.coerce.bigint().default(0n),
   POLL_INTERVAL_MS:      z.coerce.number().default(5000),
+  // CORS : URL du frontend (ex: https://finbank.app). Laisser vide en dev local.
+  FRONTEND_URL:          z.string().url().optional(),
 })
 
 const parsed = envSchema.safeParse(process.env)

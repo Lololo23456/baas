@@ -29,6 +29,7 @@ contract EASChecker {
     event AttestorRevoked(address indexed attestor);
     event SchemaUpdated(bytes32 newSchema);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event AttestationRegistered(address indexed user, bytes32 indexed uid);
 
     // ── Storage ───────────────────────────────────────────────────────────────
 
@@ -115,6 +116,7 @@ contract EASChecker {
                                                   revert NoValidAttestation(msg.sender);
 
         userAttestationUID[msg.sender] = attestationUID;
+        emit AttestationRegistered(msg.sender, attestationUID);
     }
 
     // ── Vérification (appelée par le Vault) ───────────────────────────────────

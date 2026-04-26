@@ -72,6 +72,7 @@ contract FBKDistributor {
     error NotVault();
     error ZeroAddress();
     error NothingToClaim();
+    error SupplyCapReached();
     error RewardRateTooHigh(uint256 rate, uint256 max);
 
     // ── Events ────────────────────────────────────────────────────────────────
@@ -159,9 +160,15 @@ contract FBKDistributor {
     // ── Claim ─────────────────────────────────────────────────────────────────
 
     // Reclame les $FBK accumules. Les minte directement vers l'appelant.
+    // Si le supply cap est atteint, la récompense est réduite au montant restant mintable.
     function claim() external updateReward(msg.sender) {
         uint256 reward = pendingReward[msg.sender];
         if (reward == 0) revert NothingToClaim();
+
+        // Clamp la récompense au supply restant (évite un revert sur mint)
+        uint256 mintable = fbk.MAX_SUPPLY() - fbk.totalSupply();
+        if (mintable == 0) revert SupplyCapReached();
+        if (reward > mintable) reward = mintable;
 
         pendingReward[msg.sender] = 0;
         totalDistributed         += reward;

@@ -43,7 +43,11 @@ async function indexRange(from: bigint, to: bigint) {
 async function main() {
   // ── API ───────────────────────────────────────────────────────────────────
   const app = Fastify({ logger: false })
-  await app.register(cors, { origin: true })
+
+  // Restrict CORS to the frontend domain in production.
+  // FRONTEND_URL env var should be set to https://finbank.app (or Vercel URL during dev).
+  const corsOrigin = env.FRONTEND_URL ?? true // true = all origins (dev only)
+  await app.register(cors, { origin: corsOrigin })
   app.get('/health', async () => ({ status: 'ok', network: env.NETWORK }))
   await app.register(userRoutes)
   await app.register(vaultRoutes)
