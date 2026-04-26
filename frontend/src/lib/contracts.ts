@@ -99,6 +99,17 @@ export const ERC20_ABI = [
     ],
     outputs: [{ name: '', type: 'uint256' }],
   },
+  {
+    // Testnet only — MockERC20 mint libre, pas de contrôle d'accès
+    name: 'mint',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to',     type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [],
+  },
 ] as const
 
 export const DISTRIBUTOR_ABI = [

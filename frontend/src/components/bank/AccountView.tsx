@@ -76,6 +76,10 @@ export default function AccountView() {
   // Claim state
   const [claiming, setClaiming] = useState(false)
 
+  // Faucet state (testnet only)
+  const [minting, setMinting] = useState(false)
+  const [mintSuccess, setMintSuccess] = useState(false)
+
   /* ── On-chain reads ──────────────────────────────────────── */
   const { data: totalAssets, refetch: refetchTotalAssets } = useReadContract({
     address: CONTRACTS.VAULT,
@@ -269,6 +273,30 @@ export default function AccountView() {
     }
   }
 
+  /* ── Testnet faucet — mint 1 000 MockEURC ───────────────── */
+  const handleMint = async () => {
+    if (!address || minting) return
+    setMinting(true)
+    setMintSuccess(false)
+    try {
+      const hash = await writeContractAsync({
+        address: CONTRACTS.MOCK_EURC,
+        abi: ERC20_ABI,
+        functionName: 'mint',
+        args: [address, 1_000_000_000n], // 1 000 EURC (6 decimals)
+      })
+      await waitForTransactionReceipt(config, { hash })
+      setMintSuccess(true)
+      refetchEurc()
+      // Reset success indicator after 3s
+      setTimeout(() => setMintSuccess(false), 3000)
+    } catch {
+      // Silent — user likely rejected
+    } finally {
+      setMinting(false)
+    }
+  }
+
   /* ── Claim $FBK ──────────────────────────────────────────── */
   const handleClaim = async () => {
     if (!pendingFbk || pendingFbk === 0n || claiming) return
@@ -433,6 +461,7 @@ export default function AccountView() {
             background: '#F0FDF4', border: '1px solid #BBF7D0',
             borderRadius: 14, padding: '16px 20px',
             display: 'flex', alignItems: 'flex-start', gap: 12,
+            marginBottom: 12,
           }}>
             <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>🔒</span>
             <div>
@@ -444,6 +473,44 @@ export default function AccountView() {
                 hard-coded in the smart contract — no entity, including FinBank, can prevent it.
               </p>
             </div>
+          </div>
+
+          {/* ── Testnet faucet ─────────────────────────────── */}
+          <div style={{
+            border: '1px dashed #E2E8F0',
+            borderRadius: 14, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 16,
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: '#94A3B8',
+                  background: '#F1F5F9', borderRadius: 4, padding: '2px 6px',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                }}>
+                  Testnet
+                </span>
+              </div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', marginBottom: 2 }}>
+                Get test EURC
+              </p>
+              <p style={{ fontSize: 12, color: '#94A3B8' }}>
+                Mint 1,000 MockEURC to your wallet — free on Sepolia
+              </p>
+            </div>
+            <button
+              onClick={handleMint}
+              disabled={minting}
+              className="btn btn-ghost"
+              style={{
+                fontSize: 13, padding: '10px 20px', whiteSpace: 'nowrap', flexShrink: 0,
+                background: mintSuccess ? '#F0FDF4' : undefined,
+                color: mintSuccess ? '#16a34a' : undefined,
+              }}
+            >
+              {minting ? 'Minting…' : mintSuccess ? '✓ Minted!' : '+ 1,000 EURC'}
+            </button>
           </div>
 
         </div>
