@@ -11,7 +11,6 @@ import {
 
 /* ═══════════════════════════════════════════════════════════════
    FinBank — Coffre Souverain
-   Brutalisme sombre. Langage humain. Tu détiens tes clés.
    ═══════════════════════════════════════════════════════════════ */
 
 type ActionModal = 'recevoir' | 'envoyer' | null
@@ -859,7 +858,8 @@ function DarkModal({
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.85)',
+        background: 'rgba(15,23,42,0.4)',
+        backdropFilter: 'blur(4px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}
@@ -868,10 +868,11 @@ function DarkModal({
       <div
         style={{
           width: '100%', maxWidth: 460,
-          background: 'var(--surface)',
-          border: '1px solid var(--line)',
-          borderRadius: 4,
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
           padding: '32px 28px',
+          boxShadow: '0 20px 60px rgba(15,23,42,0.12)',
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -879,13 +880,13 @@ function DarkModal({
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: 24,
         }}>
-          <h2 className="b-label" style={{ fontSize: 11, color: 'var(--text)' }}>{title}</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 600, color: '#0F172A' }}>{title}</h2>
           <button
             onClick={onClose}
             aria-label="Fermer"
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-2)', fontSize: 22, lineHeight: 1, padding: '0 4px',
+              color: '#94A3B8', fontSize: 22, lineHeight: 1, padding: '0 4px',
             }}
           >×</button>
         </div>

@@ -13,18 +13,18 @@
   --gray-900:   #0F172A;
   --black:      #000000;
 
-  /* ── Dark brutalist tokens (app) ─────────────────── */
-  --bg:         #0A0A0A;
-  --surface:    #141414;
-  --surface-2:  #1A1A1A;
-  --line:       rgba(255, 255, 255, 0.08);
-  --line-strong:rgba(255, 255, 255, 0.18);
-  --text:       #F5F5F5;
-  --text-2:     #888888;
-  --text-3:     #555555;
-  --accent:     #F5F5F5;
-  --danger:     #E5484D;
-  --success:    #4FCC8A;
+  /* ── App tokens (light, matches landing) ────────── */
+  --bg:         #FFFFFF;
+  --surface:    #F8FAFC;
+  --surface-2:  #F1F5F9;
+  --line:       rgba(15, 23, 42, 0.08);
+  --line-strong:rgba(15, 23, 42, 0.20);
+  --text:       #0F172A;
+  --text-2:     #64748B;
+  --text-3:     #94A3B8;
+  --accent:     #0F172A;
+  --danger:     #DC2626;
+  --success:    #16A34A;
 }
 
 /* ── Base ────────────────────────────────────────────── */
@@ -40,19 +40,11 @@ body {
   line-height: 1.6;
 }
 
-/* When in app: switch to dark brutalist */
-body.app {
-  background: var(--bg);
-  color: var(--text);
-}
-
 ::selection { background: rgba(15, 23, 42, 0.08); }
-body.app ::selection { background: rgba(255, 255, 255, 0.15); }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-body.app ::-webkit-scrollbar-thumb { background: #2A2A2A; }
 
 /* ── Typography helpers ──────────────────────────────── */
 .display {
@@ -173,13 +165,13 @@ body.app ::-webkit-scrollbar-thumb { background: #2A2A2A; }
 .delay-4 { animation-delay: 0.4s; }
 
 /* ═══════════════════════════════════════════════════════ */
-/* DARK BRUTALIST COMPONENTS (in /app)                     */
+/* APP COMPONENTS                                           */
 /* ═══════════════════════════════════════════════════════ */
 
 .b-surface {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 12px;
 }
 
 .b-divider {
@@ -190,10 +182,9 @@ body.app ::-webkit-scrollbar-thumb { background: #2A2A2A; }
 }
 
 .b-label {
-  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -204,68 +195,69 @@ body.app ::-webkit-scrollbar-thumb { background: #2A2A2A; }
   justify-content: center;
   gap: 8px;
   font-family: inherit;
-  font-weight: 500;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  text-transform: none;
   line-height: 1;
   cursor: pointer;
   outline: none;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
   text-decoration: none;
-  border-radius: 2px;
-  padding: 18px 24px;
+  border-radius: 12px;
+  padding: 16px 24px;
   background: var(--text);
-  color: var(--bg);
-  border: 1px solid var(--text);
+  color: #FFFFFF;
+  border: none;
 }
-.b-btn:hover { background: #DDDDDD; border-color: #DDDDDD; }
-.b-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+.b-btn:hover { background: #1e2d4a; }
+.b-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
 .b-btn-outline {
   background: transparent;
   color: var(--text);
-  border: 1px solid var(--line-strong);
+  border: 1.5px solid var(--line-strong);
 }
 .b-btn-outline:hover {
   border-color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
 }
 
 .b-btn-ghost {
   background: transparent;
   color: var(--text-2);
-  border: 1px solid transparent;
+  border: none;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 13px;
   padding: 8px 12px;
+  border-radius: 8px;
 }
-.b-btn-ghost:hover { color: var(--text); border-color: var(--line); }
+.b-btn-ghost:hover { color: var(--text); background: var(--surface); }
 
 .b-input {
   width: 100%;
-  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+  font-family: inherit;
   font-size: 18px;
+  font-weight: 500;
   color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 18px 20px;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 16px 20px;
   outline: none;
   transition: border-color 0.15s;
   -webkit-appearance: none;
-  letter-spacing: -0.01em;
 }
-.b-input:focus { border-color: var(--text-2); }
+.b-input:focus { border-color: var(--text); background: #FFFFFF; }
 .b-input::placeholder { color: var(--text-3); }
 
 .b-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   background: var(--success);
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;

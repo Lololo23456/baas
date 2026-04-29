@@ -15,23 +15,29 @@ export default function ConnectWallet() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'var(--bg)',
+      background: '#FFFFFF',
       padding: '88px 24px 24px',
     }}>
-      <div style={{ width: '100%', maxWidth: 420 }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <p className="b-label" style={{ marginBottom: 24 }}>FINBANK · COFFRE SOUVERAIN</p>
-          <h1 style={{
-            fontSize: 22, fontWeight: 500, color: 'var(--text)',
-            letterSpacing: '-0.02em', marginBottom: 14,
-            fontFamily: 'SF Mono, Menlo, monospace',
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 12,
+            background: '#0F172A',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
           }}>
-            Authentification
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>FB</span>
+          </div>
+          <h1 style={{
+            fontSize: 22, fontWeight: 600, color: '#0F172A',
+            letterSpacing: '-0.02em', marginBottom: 10,
+          }}>
+            Connecte ton portefeuille
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-            Authentifie-toi avec ta clé biométrique pour accéder à ton coffre.
+          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6 }}>
+            Authentifie-toi pour accéder à ton coffre souverain.
           </p>
         </div>
 
@@ -41,28 +47,30 @@ export default function ConnectWallet() {
             <button
               onClick={() => connect({ connector: cbWallet })}
               disabled={isPending}
-              className="b-btn"
               style={{
-                width: '100%', justifyContent: 'space-between',
-                padding: '20px 20px', fontSize: 12,
+                width: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '18px 20px',
+                background: '#0F172A', color: '#FFFFFF',
+                border: 'none', borderRadius: 12, cursor: 'pointer',
                 opacity: isPending ? 0.6 : 1,
+                transition: 'background 0.15s',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ fontSize: 14 }}>◉</span>
+                <span style={{ fontSize: 18 }}>◉</span>
                 <div style={{ textAlign: 'left' }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>
-                    {isPending ? 'CONNEXION…' : 'PASSKEY · BIOMÉTRIE'}
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#FFFFFF' }}>
+                    {isPending ? 'Connexion…' : 'Passkey · Biométrie'}
                   </p>
-                  <p className="mono" style={{
-                    fontSize: 10, color: 'rgba(10,10,10,0.6)',
-                    marginTop: 4, letterSpacing: 0, textTransform: 'none', fontWeight: 400,
-                  }}>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
                     Face ID · Sans phrase de récupération
                   </p>
                 </div>
               </div>
-              <span style={{ fontSize: 10, opacity: 0.6 }}>RECOMMANDÉ</span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
+                RECOMMANDÉ
+              </span>
             </button>
           )}
 
@@ -70,22 +78,22 @@ export default function ConnectWallet() {
             <button
               onClick={() => connect({ connector: injected })}
               disabled={isPending}
-              className="b-btn b-btn-outline"
               style={{
-                width: '100%', justifyContent: 'flex-start',
-                padding: '20px 20px', fontSize: 12, gap: 14,
+                width: '100%',
+                display: 'flex', alignItems: 'center',
+                padding: '18px 20px', gap: 14,
+                background: 'transparent', color: '#0F172A',
+                border: '1.5px solid #E2E8F0', borderRadius: 12, cursor: 'pointer',
                 opacity: isPending ? 0.5 : 1,
+                transition: 'border-color 0.15s',
               }}
             >
-              <span style={{ fontSize: 14 }}>◇</span>
+              <span style={{ fontSize: 18 }}>◇</span>
               <div style={{ textAlign: 'left' }}>
-                <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em' }}>
-                  PORTEFEUILLE NAVIGATEUR
+                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A' }}>
+                  Portefeuille navigateur
                 </p>
-                <p className="mono" style={{
-                  fontSize: 10, color: 'var(--text-3)',
-                  marginTop: 4, letterSpacing: 0, textTransform: 'none',
-                }}>
+                <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
                   MetaMask · Rabby · Coinbase Wallet
                 </p>
               </div>
@@ -93,8 +101,12 @@ export default function ConnectWallet() {
           )}
 
           {!hasAny && (
-            <div className="b-surface" style={{ textAlign: 'center', padding: '24px' }}>
-              <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
+            <div style={{
+              textAlign: 'center', padding: '24px',
+              background: '#F8FAFC', borderRadius: 12,
+              border: '1px solid #E2E8F0',
+            }}>
+              <p style={{ fontSize: 14, color: '#64748B', marginBottom: 12 }}>
                 Aucun portefeuille détecté
               </p>
               <a
@@ -102,10 +114,8 @@ export default function ConnectWallet() {
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  fontSize: 11, color: 'var(--text)', fontWeight: 500,
-                  borderBottom: '1px solid var(--line-strong)',
-                  textDecoration: 'none', letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  fontSize: 13, color: '#0F172A', fontWeight: 600,
+                  textDecoration: 'none', borderBottom: '1px solid #0F172A',
                 }}
               >
                 Installer Coinbase Wallet ↗
@@ -121,12 +131,12 @@ export default function ConnectWallet() {
             aria-live="polite"
             style={{
               marginTop: 16, padding: '12px 16px',
-              background: 'rgba(229, 72, 77, 0.08)',
-              border: '1px solid rgba(229, 72, 77, 0.25)',
-              borderRadius: 2,
+              background: 'rgba(220, 38, 38, 0.06)',
+              border: '1px solid rgba(220, 38, 38, 0.2)',
+              borderRadius: 10,
             }}
           >
-            <p style={{ fontSize: 12, color: 'var(--danger)' }}>
+            <p style={{ fontSize: 13, color: '#DC2626' }}>
               {error.message.includes('rejected') || error.message.includes('4001')
                 ? 'Connexion annulée. Réessaie.'
                 : 'Connexion impossible. Réessaie.'}
@@ -134,22 +144,12 @@ export default function ConnectWallet() {
           </div>
         )}
 
-        {/* Self-custody reminder */}
-        <div style={{
-          marginTop: 40,
-          padding: '16px 0',
-          borderTop: '1px solid var(--line)',
-        }}>
-          <p style={{
-            fontSize: 11, color: 'var(--text-2)', textAlign: 'center',
-            lineHeight: 1.7, letterSpacing: '0.02em',
-          }}>
+        {/* Footer */}
+        <div style={{ marginTop: 36, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: '#94A3B8', lineHeight: 1.7 }}>
             Tu détiens tes clés. Personne ne peut bloquer ton accès.
           </p>
-          <p className="mono" style={{
-            fontSize: 9, color: 'var(--text-3)', textAlign: 'center',
-            marginTop: 8, letterSpacing: '0.1em',
-          }}>
+          <p style={{ fontSize: 11, color: '#CBD5E1', marginTop: 6, letterSpacing: '0.06em' }}>
             BASE SEPOLIA · RÉSEAU DE TEST
           </p>
         </div>
