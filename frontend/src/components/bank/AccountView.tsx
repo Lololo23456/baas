@@ -493,7 +493,7 @@ export default function AccountView() {
             className="b-btn"
             style={{ fontSize: 11 }}
           >
-            S'IDENTIFIER VIA COINBASE ↗
+            S&apos;IDENTIFIER VIA COINBASE ↗
           </a>
         </div>
       )}

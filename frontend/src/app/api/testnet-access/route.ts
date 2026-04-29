@@ -12,7 +12,7 @@ import { createWalletClient, createPublicClient, http, isAddress } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { baseSepolia } from 'viem/chains'
 
-export const TESTNET_ACCESS_MSG = (address: string) =>
+const TESTNET_ACCESS_MSG = (address: string) =>
   `FinBank testnet access\nAddress: ${address.toLowerCase()}`
 
 const EAS_CHECKER   = '0x51210B5837521f1254F88Bcd77D4BBEB2b0254c0' as const

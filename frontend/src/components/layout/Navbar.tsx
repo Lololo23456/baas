@@ -18,7 +18,6 @@ export default function Navbar() {
   const textPrimary = dark ? '#F5F5F5' : '#0F172A'
   const textMuted   = dark ? '#888888' : '#64748B'
   const surface     = dark ? '#1A1A1A' : '#F1F5F9'
-  const surfaceHover= dark ? '#222222' : '#E2E8F0'
 
   return (
     <header
