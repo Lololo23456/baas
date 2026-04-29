@@ -70,13 +70,13 @@ export const VAULT_ABI = [
     ],
     outputs: [{ name: 'assets', type: 'uint256' }],
   },
-  // Events for tx history
+  // Events for tx history — names must match exactly what the contract emits
   {
     name: 'Deposit',
     type: 'event',
     inputs: [
-      { name: 'sender',   type: 'address', indexed: true },
-      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'caller',   type: 'address', indexed: true },
+      { name: 'owner',    type: 'address', indexed: true },
       { name: 'assets',   type: 'uint256', indexed: false },
       { name: 'shares',   type: 'uint256', indexed: false },
     ],
@@ -85,7 +85,7 @@ export const VAULT_ABI = [
     name: 'Withdraw',
     type: 'event',
     inputs: [
-      { name: 'sender',   type: 'address', indexed: true },
+      { name: 'caller',   type: 'address', indexed: true },
       { name: 'receiver', type: 'address', indexed: true },
       { name: 'owner',    type: 'address', indexed: true },
       { name: 'assets',   type: 'uint256', indexed: false },

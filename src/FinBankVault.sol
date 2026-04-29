@@ -71,6 +71,7 @@ contract FinBankVault {
     error ZeroShares();
     error ZeroAssets();
     error ReceiverNotAuthorized(address receiver); // KYC manquant sur le receveur des shares
+    error TVLCapExceeded(uint256 requested, uint256 cap); // Dépôt dépasse le plafond TVL
 
     // ── Events ────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,7 @@ contract FinBankVault {
     event DistributorUpdated(address indexed oldDistributor, address indexed newDistributor);
     event CheckerUpdated(address indexed oldChecker, address indexed newChecker);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event TVLCapUpdated(uint256 oldCap, uint256 newCap);
 
     // ── ERC-4626 / ERC-20 Storage ─────────────────────────────────────────────
 
@@ -148,6 +150,10 @@ contract FinBankVault {
     // @dev Optionnel : si address(0), les hooks sont silencieux.
     address public distributor;
 
+    // @notice Plafond TVL — protège les premiers utilisateurs en limitant l'exposition.
+    // @dev 0 = pas de plafond (à éviter en production sans audit). Modifiable par la DAO.
+    uint256 public maxTVL;
+
     // Reentrancy guard (1 = unlocked, 2 = locked).
     uint256 private _locked = 1;
 
@@ -173,13 +179,14 @@ contract FinBankVault {
         if (_checker  == address(0)) revert ZeroAddress(); // [MEDIUM-2]
         if (_treasury == address(0)) revert ZeroAddress();
 
-        asset       = IERC20(_asset);
-        morpho      = IMorpho(_morpho);
+        asset        = IERC20(_asset);
+        morpho       = IMorpho(_morpho);
         marketParams = _market;
-        easChecker  = IEASChecker(_checker);
-        treasury    = _treasury;
-        feeBps      = _feeBps;
-        owner       = msg.sender;
+        easChecker   = IEASChecker(_checker);
+        treasury     = _treasury;
+        feeBps       = _feeBps;
+        owner        = msg.sender;
+        maxTVL       = 0; // Pas de plafond par défaut — à configurer via setMaxTVL() avant mainnet
 
         // Approve Morpho pour dépenser les EURC du vault (max allowance)
         IERC20(_asset).approve(_morpho, type(uint256).max);
@@ -276,28 +283,32 @@ contract FinBankVault {
         if (receiver != msg.sender && !easChecker.isAuthorized(receiver))
             revert ReceiverNotAuthorized(receiver);
 
-        // 2. Accrue les fees sur le yield généré depuis le dernier checkpoint
+        // 2. Vérifie le plafond TVL (si configuré)
+        if (maxTVL > 0 && totalAssets() + assets > maxTVL)
+            revert TVLCapExceeded(totalAssets() + assets, maxTVL);
+
+        // 3. Accrue les fees sur le yield généré depuis le dernier checkpoint
         _accrueFees();
 
-        // 3. Calcule les shares APRÈS l'accrual des fees
+        // 4. Calcule les shares APRÈS l'accrual des fees
         shares = previewDeposit(assets);
         if (shares == 0) revert ZeroShares();
 
-        // 4. Transfert des EURC du user vers le vault
+        // 5. Transfert des EURC du user vers le vault
         asset.transferFrom(msg.sender, address(this), assets);
 
-        // 5. Dépôt dans Morpho Blue
+        // 6. Dépôt dans Morpho Blue
         morpho.supply(marketParams, assets, 0, address(this), "");
 
-        // 6. Mint des shares au receiver
+        // 7. Mint des shares au receiver
         _mint(receiver, shares);
 
-        // 7. Notifie le distributor $FBK (si configure)
+        // 8. Notifie le distributor $FBK (si configure)
         if (distributor != address(0)) {
             IFBKDistributor(distributor).notifyDeposit(receiver, shares);
         }
 
-        // 8. Met à jour le checkpoint
+        // 9. Met à jour le checkpoint
         lastTotalAssets = totalAssets();
 
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -457,6 +468,13 @@ contract FinBankVault {
         easChecker = IEASChecker(newChecker);
     }
 
+    // @notice Configure le plafond TVL (vote DAO requis).
+    // @dev 0 = pas de plafond. Recommandé : partir bas (10_000e6) et augmenter progressivement.
+    function setMaxTVL(uint256 newMaxTVL) external onlyOwner {
+        emit TVLCapUpdated(maxTVL, newMaxTVL);
+        maxTVL = newMaxTVL;
+    }
+
     // @notice Configure le FBKDistributor (vote DAO requis).
     // @dev Passer address(0) pour desactiver les hooks de distribution.
     function setDistributor(address newDistributor) external onlyOwner {
@@ -509,11 +527,12 @@ contract FinBankVault {
     // ── Internal Helpers ──────────────────────────────────────────────────────
 
     // Synchronise le distributor lors d'un transfert direct de shares.
+    // try/catch : un bug dans le distributor ne doit jamais bloquer les transferts ERC-20.
     function _notifyTransfer(address from, address to, uint256 shares) internal {
         address d = distributor;
         if (d == address(0)) return;
-        IFBKDistributor(d).notifyWithdraw(from, shares);
-        IFBKDistributor(d).notifyDeposit(to, shares);
+        try IFBKDistributor(d).notifyWithdraw(from, shares) {} catch {}
+        try IFBKDistributor(d).notifyDeposit(to, shares)    {} catch {}
     }
 
     function _mint(address to, uint256 shares) internal {

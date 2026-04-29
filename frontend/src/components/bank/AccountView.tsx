@@ -177,7 +177,7 @@ export default function AccountView() {
           address: CONTRACTS.VAULT,
           abi: VAULT_ABI,
           eventName: 'Deposit',
-          args: { receiver: address },
+          args: { owner: address },
           fromBlock,
           toBlock: latestBlock,
         }),
