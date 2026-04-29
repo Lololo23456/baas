@@ -70,6 +70,28 @@ export const VAULT_ABI = [
     ],
     outputs: [{ name: 'assets', type: 'uint256' }],
   },
+  // Events for tx history
+  {
+    name: 'Deposit',
+    type: 'event',
+    inputs: [
+      { name: 'sender',   type: 'address', indexed: true },
+      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'assets',   type: 'uint256', indexed: false },
+      { name: 'shares',   type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    name: 'Withdraw',
+    type: 'event',
+    inputs: [
+      { name: 'sender',   type: 'address', indexed: true },
+      { name: 'receiver', type: 'address', indexed: true },
+      { name: 'owner',    type: 'address', indexed: true },
+      { name: 'assets',   type: 'uint256', indexed: false },
+      { name: 'shares',   type: 'uint256', indexed: false },
+    ],
+  },
 ] as const
 
 export const ERC20_ABI = [

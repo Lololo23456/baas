@@ -10,14 +10,24 @@ export default function Navbar() {
   const { disconnect } = useDisconnect()
   const inApp = pathname !== '/'
 
+  // Dark brutalist mode for in-app routes
+  const dark = inApp
+
+  const bg     = dark ? 'rgba(10,10,10,0.85)'   : 'rgba(255,255,255,0.85)'
+  const border = dark ? 'rgba(255,255,255,0.08)' : '#E2E8F0'
+  const textPrimary = dark ? '#F5F5F5' : '#0F172A'
+  const textMuted   = dark ? '#888888' : '#64748B'
+  const surface     = dark ? '#1A1A1A' : '#F1F5F9'
+  const surfaceHover= dark ? '#222222' : '#E2E8F0'
+
   return (
     <header
       style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-        background: 'rgba(255,255,255,0.85)',
+        background: bg,
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid #E2E8F0',
+        borderBottom: `1px solid ${border}`,
       }}
     >
       <nav
@@ -31,15 +41,26 @@ export default function Navbar() {
       >
         {/* Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          {/* ── Logo placeholder — swap src when ready ── */}
           <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: '#0F172A',
+            width: 28, height: 28, borderRadius: 2,
+            background: dark ? '#F5F5F5' : '#0F172A',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>FB</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700,
+              color: dark ? '#0A0A0A' : '#FFFFFF',
+              letterSpacing: '-0.02em',
+              fontFamily: 'SF Mono, Menlo, monospace',
+            }}>FB</span>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', letterSpacing: '-0.01em' }}>
+          <span style={{
+            fontSize: dark ? 13 : 15,
+            fontWeight: dark ? 500 : 600,
+            color: textPrimary,
+            letterSpacing: dark ? '0.04em' : '-0.01em',
+            textTransform: dark ? 'uppercase' : 'none',
+            fontFamily: dark ? 'SF Mono, Menlo, monospace' : 'inherit',
+          }}>
             FinBank
           </span>
         </Link>
@@ -48,9 +69,9 @@ export default function Navbar() {
         {inApp && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {[
-              { href: '/app',        label: 'Account' },
+              { href: '/app',        label: 'Coffre' },
               { href: '/stake',      label: 'Stake' },
-              { href: '/governance', label: 'Governance' },
+              { href: '/governance', label: 'Vote' },
             ].map(({ href, label }) => {
               const active = pathname === href || (href !== '/app' && pathname?.startsWith(href))
               return (
@@ -58,10 +79,12 @@ export default function Navbar() {
                   key={href}
                   href={href}
                   style={{
-                    fontSize: 14, fontWeight: 500,
-                    color: active ? '#0F172A' : '#64748B',
-                    background: active ? '#F1F5F9' : 'transparent',
-                    padding: '7px 14px', borderRadius: 10,
+                    fontSize: 12, fontWeight: 500,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: active ? textPrimary : textMuted,
+                    background: active ? surface : 'transparent',
+                    padding: '8px 14px', borderRadius: 2,
                     textDecoration: 'none',
                     transition: 'all 0.12s',
                   }}
@@ -78,23 +101,31 @@ export default function Navbar() {
           {isConnected && address ? (
             <>
               <span style={{
-                fontSize: 12, fontFamily: 'monospace',
-                color: '#64748B',
-                background: '#F1F5F9',
-                padding: '6px 12px', borderRadius: 100,
+                fontSize: 11, fontFamily: 'SF Mono, Menlo, monospace',
+                color: textMuted,
+                background: surface,
+                padding: '6px 10px', borderRadius: 2,
+                letterSpacing: '-0.01em',
               }}>
                 {address.slice(0, 6)}···{address.slice(-4)}
               </span>
               <button
                 onClick={() => disconnect()}
                 style={{
-                  fontSize: 13, fontWeight: 500, color: '#64748B',
+                  fontSize: 11, fontWeight: 500, color: textMuted,
                   background: 'none', border: 'none', cursor: 'pointer',
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  fontFamily: 'inherit',
                 }}
+                onMouseOver={(e) => { e.currentTarget.style.color = textPrimary }}
+                onMouseOut={(e)  => { e.currentTarget.style.color = textMuted }}
               >
-                Sign out
+                Sortir
               </button>
             </>
+          ) : dark ? (
+            // Hide CTA when already in app (it would just point to current page)
+            null
           ) : (
             <Link href="/app" className="btn btn-dark" style={{ padding: '10px 20px', fontSize: 13 }}>
               Open App

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useChainId } from 'wagmi'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useAccount, useReadContract, useWriteContract, useChainId, usePublicClient, useSignMessage } from 'wagmi'
 import { readContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { formatUnits, parseUnits } from 'viem'
 import { config } from '@/lib/wagmi'
@@ -9,199 +9,230 @@ import {
   CONTRACTS, VAULT_ABI, ERC20_ABI, DISTRIBUTOR_ABI, EAS_CHECKER_ABI, BASESCAN_URL,
 } from '@/lib/contracts'
 
-/* ── Types ──────────────────────────────────────────────────── */
-type Tab         = 'overview' | 'onchain'
+/* ═══════════════════════════════════════════════════════════════
+   FinBank — Coffre Souverain
+   Brutalisme sombre. Langage humain. Tu détiens tes clés.
+   ═══════════════════════════════════════════════════════════════ */
+
+type ActionModal = 'recevoir' | 'envoyer' | null
 type DepositStep = 'idle' | 'approving' | 'depositing' | 'success' | 'error'
 type WithdrawStep= 'idle' | 'withdrawing' | 'success' | 'error'
 
-/* ── Safe input parser ──────────────────────────────────────── */
+type TxItem = {
+  type:   'in' | 'out'
+  amount: bigint
+  block:  bigint
+  hash:   string
+  date?:  Date
+}
+
+/* ── Utils ──────────────────────────────────────────── */
 function safeParseUnits(value: string, decimals: number): bigint | null {
   try {
     if (!value || value.trim() === '') return null
     const num = Number(value)
     if (!isFinite(num) || num <= 0) return null
-    // Truncate extra decimals to avoid parseUnits throwing
     const [int, frac = ''] = value.split('.')
-    const sanitized = frac.length > 0
-      ? `${int}.${frac.slice(0, decimals)}`
-      : int
+    const sanitized = frac.length > 0 ? `${int}.${frac.slice(0, decimals)}` : int
     return parseUnits(sanitized, decimals)
   } catch {
     return null
   }
 }
 
-/* ── Error message extractor ────────────────────────────────── */
 function extractError(err: unknown): string {
   if (err instanceof Error) {
     const msg = err.message
     if (msg.includes('User rejected') || msg.includes('user rejected') || msg.includes('4001')) {
-      return 'Transaction rejected in wallet.'
+      return 'Transaction annulée.'
     }
     if (msg.includes('NotAuthorized') || msg.includes('not authorized') || msg.includes('isAuthorized')) {
-      return 'Account not verified. KYC verification is required to deposit.'
+      return 'Identification requise pour approvisionner.'
     }
-    if (msg.includes('insufficient')) return 'Insufficient balance.'
-    if (msg.includes('reverted'))     return 'Transaction reverted — check your balance and network.'
+    if (msg.includes('insufficient')) return 'Solde insuffisant.'
+    if (msg.includes('reverted'))     return 'Opération refusée par le réseau.'
   }
-  return 'Transaction failed. Please try again.'
+  return 'Opération impossible. Réessaie.'
 }
 
-/* ── Formatters ─────────────────────────────────────────────── */
-// Vault shares and EURC both use 6 decimals (FinBankVault.sol: uint8 public decimals = 6)
-const fmt6 = (v?: bigint) =>
+const fmtEur = (v?: bigint) =>
   v !== undefined
-    ? Number(formatUnits(v, 6)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '···'
+    ? Number(formatUnits(v, 6)).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '—'
 
-const fmt18 = (v?: bigint) =>
+const fmtTok = (v?: bigint) =>
   v !== undefined
-    ? Number(formatUnits(v, 18)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-    : '···'
+    ? Number(formatUnits(v, 18)).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '—'
 
-/* ═══════════════════════════════════════════════════════════ */
+function timeAgo(date?: Date): string {
+  if (!date) return '—'
+  const now = Date.now()
+  const diff = (now - date.getTime()) / 1000
+  if (diff < 60)        return 'à l\'instant'
+  if (diff < 3600)      return `il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86_400)    return `il y a ${Math.floor(diff / 3600)} h`
+  if (diff < 7 * 86_400)return `il y a ${Math.floor(diff / 86_400)} j`
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
 export default function AccountView() {
-  const { address } = useAccount()
-  const chainId = useChainId()
-  const isTestnet = chainId === 84532 // Base Sepolia
+  const { address }  = useAccount()
+  const chainId      = useChainId()
+  const publicClient = usePublicClient()
+  const isTestnet    = chainId === 84532
 
-  const [tab,          setTab]          = useState<Tab>('overview')
-  const [activeModal,  setActiveModal]  = useState<'deposit' | 'withdraw' | null>(null)
+  const [modal,         setModal]         = useState<ActionModal>(null)
+  const [showSettings,  setShowSettings]  = useState(false)
 
-  // Deposit state
   const [depositAmount, setDepositAmount] = useState('')
   const [depositStep,   setDepositStep]   = useState<DepositStep>('idle')
   const [depositError,  setDepositError]  = useState<string | null>(null)
 
-  // Withdraw state
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawStep,   setWithdrawStep]   = useState<WithdrawStep>('idle')
   const [withdrawError,  setWithdrawError]  = useState<string | null>(null)
 
-  // Claim state
-  const [claiming, setClaiming] = useState(false)
+  const [claiming, setClaiming]     = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
-
-  // Faucet state (testnet only)
-  const [minting, setMinting] = useState(false)
-  const [mintSuccess, setMintSuccess] = useState(false)
-
-  // Faucet error
-  const [mintError, setMintError] = useState<string | null>(null)
-
-  // KYC — testnet self-register flow
+  const [minting, setMinting]       = useState(false)
+  const [mintError, setMintError]   = useState<string | null>(null)
   const [registering, setRegistering] = useState(false)
   const [registerError, setRegisterError] = useState<string | null>(null)
-
-  // KYC verification flow (mainnet — Coinbase)
   const [verifyClicked, setVerifyClicked] = useState(false)
 
-  /* ── On-chain reads ──────────────────────────────────────── */
-  // Poll every 15s so balances stay fresh without a manual reload
+  const [txs, setTxs] = useState<TxItem[]>([])
+  const [loadingTxs, setLoadingTxs] = useState(false)
+
   const POLL_MS = 15_000
 
+  /* ── Reads ─────────────────────────────────────────── */
   const { data: totalAssets, refetch: refetchTotalAssets } = useReadContract({
-    address: CONTRACTS.VAULT,
-    abi: VAULT_ABI,
-    functionName: 'totalAssets',
+    address: CONTRACTS.VAULT, abi: VAULT_ABI, functionName: 'totalAssets',
     query: { refetchInterval: POLL_MS },
   })
 
   const { data: userShares, refetch: refetchShares } = useReadContract({
-    address: CONTRACTS.VAULT,
-    abi: VAULT_ABI,
-    functionName: 'balanceOf',
+    address: CONTRACTS.VAULT, abi: VAULT_ABI, functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
-  // Fix: userShares !== undefined (not !!userShares) — 0n is valid and falsy
   const { data: userAssets, refetch: refetchAssets } = useReadContract({
-    address: CONTRACTS.VAULT,
-    abi: VAULT_ABI,
-    functionName: 'convertToAssets',
+    address: CONTRACTS.VAULT, abi: VAULT_ABI, functionName: 'convertToAssets',
     args: userShares !== undefined ? [userShares] : undefined,
     query: { enabled: userShares !== undefined, refetchInterval: POLL_MS },
   })
 
   const { data: maxWithdrawable, refetch: refetchMaxWithdraw } = useReadContract({
-    address: CONTRACTS.VAULT,
-    abi: VAULT_ABI,
-    functionName: 'maxWithdraw',
+    address: CONTRACTS.VAULT, abi: VAULT_ABI, functionName: 'maxWithdraw',
     args: address ? [address] : undefined,
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: eurcBalance, refetch: refetchEurc } = useReadContract({
-    address: CONTRACTS.MOCK_EURC,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
+    address: CONTRACTS.MOCK_EURC, abi: ERC20_ABI, functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: CONTRACTS.MOCK_EURC,
-    abi: ERC20_ABI,
-    functionName: 'allowance',
+    address: CONTRACTS.MOCK_EURC, abi: ERC20_ABI, functionName: 'allowance',
     args: address ? [address, CONTRACTS.VAULT] : undefined,
     query: { enabled: !!address },
   })
 
   const { data: pendingFbk, refetch: refetchFbk } = useReadContract({
-    address: CONTRACTS.DISTRIBUTOR,
-    abi: DISTRIBUTOR_ABI,
-    functionName: 'earned',
+    address: CONTRACTS.DISTRIBUTOR, abi: DISTRIBUTOR_ABI, functionName: 'earned',
     args: address ? [address] : undefined,
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: fbkBalance, refetch: refetchFbkBalance } = useReadContract({
-    address: CONTRACTS.FBK_TOKEN,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
+    address: CONTRACTS.FBK_TOKEN, abi: ERC20_ABI, functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: { enabled: !!address, refetchInterval: POLL_MS },
   })
 
   const { data: isAuthorized, refetch: refetchAuth } = useReadContract({
-    address: CONTRACTS.EAS_CHECKER,
-    abi: EAS_CHECKER_ABI,
-    functionName: 'isAuthorized',
+    address: CONTRACTS.EAS_CHECKER, abi: EAS_CHECKER_ABI, functionName: 'isAuthorized',
     args: address ? [address] : undefined,
     query: { enabled: !!address },
   })
 
-  /* ── Write hook (shared) ─────────────────────────────────── */
-  const { writeContractAsync } = useWriteContract()
+  const { writeContractAsync }  = useWriteContract()
+  const { signMessageAsync }    = useSignMessage()
 
-  /* ── KYC polling — dès que l'user clique "Verify with Coinbase",
-        on poll isAuthorized toutes les 5s jusqu'à ce que ça passe ── */
-  useEffect(() => {
-    if (!verifyClicked || isAuthorized !== false) return
-    const interval = setInterval(() => { refetchAuth() }, 5_000)
-    return () => clearInterval(interval)
-  }, [verifyClicked, isAuthorized, refetchAuth])
+  /* ── Tx history (on-chain) ─────────────────────────── */
+  const loadTxs = useCallback(async () => {
+    if (!address || !publicClient) return
+    setLoadingTxs(true)
+    try {
+      const latestBlock = await publicClient.getBlockNumber()
+      // Look back ~3 days on Base (2s blocks → ~130k blocks)
+      const fromBlock = latestBlock > 130_000n ? latestBlock - 130_000n : 0n
 
-  // Reset verifyClicked quand le wallet change
-  useEffect(() => { setVerifyClicked(false) }, [address])
+      const [deposits, withdraws] = await Promise.all([
+        publicClient.getContractEvents({
+          address: CONTRACTS.VAULT,
+          abi: VAULT_ABI,
+          eventName: 'Deposit',
+          args: { receiver: address },
+          fromBlock,
+          toBlock: latestBlock,
+        }),
+        publicClient.getContractEvents({
+          address: CONTRACTS.VAULT,
+          abi: VAULT_ABI,
+          eventName: 'Withdraw',
+          args: { owner: address },
+          fromBlock,
+          toBlock: latestBlock,
+        }),
+      ])
 
-  /* ── Close modal on Escape key ───────────────────────────── */
-  useEffect(() => {
-    if (!activeModal) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeModal()
+      const items: TxItem[] = []
+      for (const e of deposits) {
+        items.push({
+          type: 'in',
+          amount: (e.args as { assets: bigint }).assets,
+          block: e.blockNumber!,
+          hash: e.transactionHash!,
+        })
+      }
+      for (const e of withdraws) {
+        items.push({
+          type: 'out',
+          amount: (e.args as { assets: bigint }).assets,
+          block: e.blockNumber!,
+          hash: e.transactionHash!,
+        })
+      }
+      items.sort((a, b) => Number(b.block - a.block))
+
+      // Resolve timestamps for the first 10
+      const top = items.slice(0, 10)
+      await Promise.all(top.map(async (it) => {
+        try {
+          const block = await publicClient.getBlock({ blockNumber: it.block })
+          it.date = new Date(Number(block.timestamp) * 1000)
+        } catch { /* ignore */ }
+      }))
+
+      setTxs(top)
+    } catch (err) {
+      console.warn('[txs] load failed', err)
+    } finally {
+      setLoadingTxs(false)
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModal, depositStep, withdrawStep])
+  }, [address, publicClient])
 
-  /* ── Refetch all ─────────────────────────────────────────── */
+  useEffect(() => { loadTxs() }, [loadTxs])
+
+  /* ── Refetch all ───────────────────────────────────── */
   const refetchAll = useCallback(async () => {
-    // Refetch shares first — userAssets depends on userShares
     await refetchShares()
-    // Then refetch everything else in parallel
     await Promise.all([
       refetchTotalAssets(),
       refetchAssets(),
@@ -211,676 +242,397 @@ export default function AccountView() {
       refetchFbk(),
       refetchFbkBalance(),
     ])
-  }, [refetchTotalAssets, refetchShares, refetchAssets, refetchEurc, refetchAllowance, refetchMaxWithdraw, refetchFbk])
+  }, [refetchTotalAssets, refetchShares, refetchAssets, refetchEurc, refetchAllowance, refetchMaxWithdraw, refetchFbk, refetchFbkBalance])
 
-  /* ── Refetch after tx — waits then retries to beat RPC cache */
   const refetchAfterTx = useCallback(async () => {
     await refetchAll()
-    // Retry after 2s in case the RPC returned cached state right after mining
-    setTimeout(() => refetchAll(), 2000)
-  }, [refetchAll])
+    setTimeout(() => { refetchAll(); loadTxs() }, 2000)
+  }, [refetchAll, loadTxs])
 
-  /* ── Open modal (resets state) ───────────────────────────── */
-  const openModal = (modal: 'deposit' | 'withdraw') => {
-    setActiveModal(modal)
-    if (modal === 'deposit') {
-      setDepositAmount('')
-      setDepositStep('idle')
-      setDepositError(null)
-    } else {
-      setWithdrawAmount('')
-      setWithdrawStep('idle')
-      setWithdrawError(null)
+  /* ── KYC polling (mainnet Coinbase flow) ───────────── */
+  useEffect(() => {
+    if (!verifyClicked || isAuthorized !== false) return
+    const t = setInterval(() => { refetchAuth() }, 5_000)
+    return () => clearInterval(t)
+  }, [verifyClicked, isAuthorized, refetchAuth])
+
+  useEffect(() => { setVerifyClicked(false) }, [address])
+
+  /* ── Esc closes modal ──────────────────────────────── */
+  useEffect(() => {
+    if (!modal && !showSettings) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { closeModal(); setShowSettings(false) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal, showSettings, depositStep, withdrawStep])
+
+  const openModal = (m: ActionModal) => {
+    setModal(m)
+    if (m === 'recevoir') {
+      setDepositAmount(''); setDepositStep('idle'); setDepositError(null)
+    } else if (m === 'envoyer') {
+      setWithdrawAmount(''); setWithdrawStep('idle'); setWithdrawError(null)
     }
   }
 
   const closeModal = () => {
-    // Don't close mid-transaction
     if (depositStep === 'approving' || depositStep === 'depositing') return
     if (withdrawStep === 'withdrawing') return
-    setActiveModal(null)
-    setDepositStep('idle')
-    setWithdrawStep('idle')
+    setModal(null); setDepositStep('idle'); setWithdrawStep('idle')
   }
 
-  /* ── Deposit handler: approve (if needed) → deposit ─────── */
+  /* ── Handlers ──────────────────────────────────────── */
   const handleDeposit = async () => {
     if (!address || !depositAmount) return
-
     const amount = safeParseUnits(depositAmount, 6)
-    if (!amount) {
-      setDepositError('Invalid amount.')
-      return
-    }
+    if (!amount) { setDepositError('Montant invalide.'); return }
     if (eurcBalance !== undefined && amount > eurcBalance) {
-      setDepositError('Amount exceeds your wallet balance.')
-      return
+      setDepositError('Montant supérieur à ton solde.'); return
     }
-
     setDepositError(null)
-
     try {
-      // Skip approve if allowance is already sufficient
-      const currentAllowance = allowance ?? 0n
-      if (currentAllowance < amount) {
+      const cur = allowance ?? 0n
+      if (cur < amount) {
         setDepositStep('approving')
-        const approveTx = await writeContractAsync({
-          address: CONTRACTS.MOCK_EURC,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [CONTRACTS.VAULT, amount],
+        const hash = await writeContractAsync({
+          address: CONTRACTS.MOCK_EURC, abi: ERC20_ABI,
+          functionName: 'approve', args: [CONTRACTS.VAULT, amount],
         })
-        await waitForTransactionReceipt(config, { hash: approveTx })
+        await waitForTransactionReceipt(config, { hash })
       }
-
       setDepositStep('depositing')
-      const depositTx = await writeContractAsync({
-        address: CONTRACTS.VAULT,
-        abi: VAULT_ABI,
-        functionName: 'deposit',
-        args: [amount, address],
+      const hash = await writeContractAsync({
+        address: CONTRACTS.VAULT, abi: VAULT_ABI,
+        functionName: 'deposit', args: [amount, address],
       })
-      await waitForTransactionReceipt(config, { hash: depositTx })
-
+      await waitForTransactionReceipt(config, { hash })
       setDepositStep('success')
       refetchAfterTx()
     } catch (err) {
-      setDepositError(extractError(err))
-      setDepositStep('error')
+      setDepositError(extractError(err)); setDepositStep('error')
     }
   }
 
-  /* ── Withdraw handler: EURC input → convertToShares → redeem */
   const handleWithdraw = async () => {
     if (!address || !withdrawAmount) return
-
     const amount = safeParseUnits(withdrawAmount, 6)
-    if (!amount) {
-      setWithdrawError('Invalid amount.')
-      return
-    }
+    if (!amount) { setWithdrawError('Montant invalide.'); return }
     if (maxWithdrawable !== undefined && amount > maxWithdrawable) {
-      setWithdrawError('Amount exceeds your withdrawable balance.')
-      return
+      setWithdrawError('Montant supérieur à ton solde.'); return
     }
-
-    setWithdrawError(null)
-    setWithdrawStep('withdrawing')
-
+    setWithdrawError(null); setWithdrawStep('withdrawing')
     try {
-      // Convert EURC amount → shares via on-chain view call
       const shares = await readContract(config, {
-        address: CONTRACTS.VAULT,
-        abi: VAULT_ABI,
-        functionName: 'convertToShares',
-        args: [amount],
+        address: CONTRACTS.VAULT, abi: VAULT_ABI,
+        functionName: 'convertToShares', args: [amount],
       })
-
-      const redeemTx = await writeContractAsync({
-        address: CONTRACTS.VAULT,
-        abi: VAULT_ABI,
-        functionName: 'redeem',
-        args: [shares, address, address],
+      const hash = await writeContractAsync({
+        address: CONTRACTS.VAULT, abi: VAULT_ABI,
+        functionName: 'redeem', args: [shares, address, address],
       })
-      await waitForTransactionReceipt(config, { hash: redeemTx })
-
+      await waitForTransactionReceipt(config, { hash })
       setWithdrawStep('success')
       refetchAfterTx()
     } catch (err) {
-      setWithdrawError(extractError(err))
-      setWithdrawStep('error')
+      setWithdrawError(extractError(err)); setWithdrawStep('error')
     }
   }
 
-  /* ── Testnet faucet — mint 1 000 MockEURC ───────────────── */
-  const handleMint = async () => {
-    if (!address || minting) return
-    setMinting(true)
-    setMintSuccess(false)
-    setMintError(null)
-    try {
-      const hash = await writeContractAsync({
-        address: CONTRACTS.MOCK_EURC,
-        abi: ERC20_ABI,
-        functionName: 'mint',
-        args: [address, 1_000_000_000n], // 1 000 EURC (6 decimals)
-      })
-      await waitForTransactionReceipt(config, { hash })
-      setMintSuccess(true)
-      refetchEurc()
-      // Reset success indicator after 3s
-      setTimeout(() => setMintSuccess(false), 3000)
-    } catch (err) {
-      if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
-        return // Silent on user rejection only
-      }
-      setMintError('Faucet failed. Make sure you have Sepolia ETH for gas.')
-    } finally {
-      setMinting(false)
-    }
-  }
-
-  /* ── Claim $FBK ──────────────────────────────────────────── */
   const handleClaim = async () => {
     if (!pendingFbk || pendingFbk === 0n || claiming) return
-    setClaiming(true)
-    setClaimError(null)
+    setClaiming(true); setClaimError(null)
     try {
       const hash = await writeContractAsync({
-        address: CONTRACTS.DISTRIBUTOR,
-        abi: DISTRIBUTOR_ABI,
-        functionName: 'claim',
+        address: CONTRACTS.DISTRIBUTOR, abi: DISTRIBUTOR_ABI, functionName: 'claim',
       })
       await waitForTransactionReceipt(config, { hash })
       refetchAfterTx()
     } catch (err) {
       if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
-        // User rejected — silent
+        // silent
       } else {
         setClaimError(extractError(err))
       }
-    } finally {
-      setClaiming(false)
-    }
+    } finally { setClaiming(false) }
   }
 
-  /* ── Testnet KYC : whitelisting via API (pas de wallet required) ── */
+  const handleMint = async () => {
+    if (!address || minting) return
+    setMinting(true); setMintError(null)
+    try {
+      const hash = await writeContractAsync({
+        address: CONTRACTS.MOCK_EURC, abi: ERC20_ABI,
+        functionName: 'mint', args: [address, 1_000_000_000n],
+      })
+      await waitForTransactionReceipt(config, { hash })
+      refetchEurc()
+    } catch (err) {
+      if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) return
+      setMintError('Échec. Vérifie tes ETH Sepolia.')
+    } finally { setMinting(false) }
+  }
+
   const handleSelfRegister = async () => {
     if (registering || !address) return
-    setRegistering(true)
-    setRegisterError(null)
+    setRegistering(true); setRegisterError(null)
     try {
+      // Sign a message proving ownership of the address (no gas cost, just a wallet prompt)
+      const message = `FinBank testnet access\nAddress: ${address.toLowerCase()}`
+      const signature = await signMessageAsync({ message })
       const res = await fetch('/api/testnet-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address, signature }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Request failed')
-      // Attendre un peu puis refetch
+      if (!res.ok) throw new Error(data.error ?? 'Échec')
       await new Promise(r => setTimeout(r, 2000))
       refetchAuth()
     } catch (err) {
+      if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) return
       setRegisterError(extractError(err))
-    } finally {
-      setRegistering(false)
-    }
+    } finally { setRegistering(false) }
   }
 
-  /* ── Derived display values ──────────────────────────────── */
-  const TVL        = fmt6(totalAssets)
-  const myBalance  = fmt6(userAssets)
-  const walletEurc = fmt6(eurcBalance)
-  const maxOut     = fmt6(maxWithdrawable)
-  const fbkPending = fmt18(pendingFbk)
-  const fbkWallet  = fmt18(fbkBalance)
-  const shortAddr  = address ? `${address.slice(0, 10)}···${address.slice(-6)}` : ''
+  /* ── Derived ───────────────────────────────────────── */
+  const balanceEur = fmtEur(userAssets)
+  const walletEur  = fmtEur(eurcBalance)
+  const maxOutEur  = fmtEur(maxWithdrawable)
+  const fbkPend    = fmtTok(pendingFbk)
+  const fbkOwn     = fmtTok(fbkBalance)
 
-  /* ── Deposit button label ────────────────────────────────── */
-  const depositLabel = () => {
-    if (depositStep === 'approving')  return '1/2 — Approving EURC…'
-    if (depositStep === 'depositing') return '2/2 — Depositing…'
-    if (depositStep === 'success')    return 'Deposited ✓'
-    if (depositStep === 'error')      return 'Retry'
+  const depositLabel = useMemo(() => {
+    if (depositStep === 'approving')  return 'AUTORISATION 1/2'
+    if (depositStep === 'depositing') return 'TRANSFERT 2/2'
+    if (depositStep === 'success')    return 'CONFIRMÉ'
+    if (depositStep === 'error')      return 'RÉESSAYER'
+    const a = safeParseUnits(depositAmount, 6)
+    return !a || (allowance ?? 0n) < a ? 'AUTORISER ET RECEVOIR' : 'RECEVOIR'
+  }, [depositStep, depositAmount, allowance])
 
-    // Check if approve will be skipped
-    const amount = safeParseUnits(depositAmount, 6)
-    const needsApprove = !amount || (allowance ?? 0n) < amount
-    return needsApprove ? 'Approve & Deposit' : 'Deposit'
-  }
-
-  const depositDisabled =
-    !depositAmount ||
-    depositStep === 'approving' ||
-    depositStep === 'depositing'
-
-  const withdrawDisabled =
-    !withdrawAmount ||
-    withdrawStep === 'withdrawing'
-
-  /* ═══════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════ */
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px 120px' }}>
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.025em', marginBottom: 4 }}>
-          Account
-        </h1>
-        <p style={{ fontSize: 13, fontFamily: 'monospace', color: '#94A3B8' }}>
-          {shortAddr}
+      {/* ── Header bar ─────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 56,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="b-dot" />
+          <span className="b-label">COFFRE — AUTHENTIFIÉ</span>
+        </div>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="b-btn-ghost"
+          aria-label="Paramètres de souveraineté"
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Souveraineté
+        </button>
+      </div>
+
+      {/* ── Balance ────────────────────────────────────── */}
+      <div style={{ marginBottom: 48 }}>
+        <p className="b-label" style={{ marginBottom: 16 }}>SOLDE DU COFFRE</p>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
+          <span style={{ fontSize: 18, color: 'var(--text-2)', fontWeight: 400 }}>€</span>
+          <span className="mono" style={{
+            fontSize: 56, fontWeight: 500, color: 'var(--text)',
+            letterSpacing: '-0.04em', lineHeight: 1,
+          }}>
+            {balanceEur}
+          </span>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
+          Disponible immédiatement · €&nbsp;{maxOutEur}
         </p>
       </div>
 
-      {/* ── Tab toggle ─────────────────────────────────────── */}
-      <div style={{
-        display: 'inline-flex',
-        background: '#F1F5F9',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 32,
-      }}>
-        {(['overview', 'onchain'] as Tab[]).map(t => (
+      {/* ── KYC blocks ─────────────────────────────────── */}
+      {isAuthorized === false && isTestnet && (
+        <div className="b-surface" style={{ padding: '20px 24px', marginBottom: 32 }}>
+          <p className="b-label" style={{ marginBottom: 8 }}>ACCÈS — RÉSEAU DE TEST</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+            En un clic. Aucun document. Aucune donnée stockée par FinBank.
+          </p>
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            onClick={handleSelfRegister}
+            disabled={registering}
+            className="b-btn"
+            style={{ fontSize: 11 }}
+          >
+            {registering ? 'EN COURS…' : 'OBTENIR L\'ACCÈS'}
+          </button>
+          {registerError && (
+            <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 10 }}>{registerError}</p>
+          )}
+        </div>
+      )}
+
+      {isAuthorized === false && !isTestnet && !verifyClicked && (
+        <div className="b-surface" style={{ padding: '20px 24px', marginBottom: 32 }}>
+          <p className="b-label" style={{ marginBottom: 8 }}>IDENTIFICATION REQUISE</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16, lineHeight: 1.6 }}>
+            Vérification une fois, via Coinbase. Aucune donnée stockée par FinBank.
+            Tes retraits restent toujours disponibles, même sans identification.
+          </p>
+          <a
+            href="https://coinbase.com/onchain-verify"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setVerifyClicked(true)}
+            className="b-btn"
+            style={{ fontSize: 11 }}
+          >
+            S'IDENTIFIER VIA COINBASE ↗
+          </a>
+        </div>
+      )}
+
+      {isAuthorized === false && !isTestnet && verifyClicked && (
+        <div className="b-surface" style={{ padding: '20px 24px', marginBottom: 32 }}>
+          <p className="b-label" style={{ marginBottom: 8 }}>EN ATTENTE DE LA PREUVE</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
+            Termine la procédure sur Coinbase. La détection est automatique.
+          </p>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-2)' }}>
+            <span className="b-dot" />
+            <span className="mono">VÉRIFICATION CONTINUE</span>
+          </span>
+        </div>
+      )}
+
+      {/* ── Two big actions ────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 56 }}>
+        <button
+          onClick={() => openModal('recevoir')}
+          disabled={isAuthorized === false}
+          className="b-btn"
+          style={{ padding: '24px 16px', fontSize: 13 }}
+          title={isAuthorized === false ? 'Identification requise' : undefined}
+        >
+          ↓ &nbsp; RECEVOIR
+        </button>
+        <button
+          onClick={() => openModal('envoyer')}
+          className="b-btn b-btn-outline"
+          style={{ padding: '24px 16px', fontSize: 13 }}
+        >
+          ↑ &nbsp; ENVOYER
+        </button>
+      </div>
+
+      {/* ── Activity feed ──────────────────────────────── */}
+      <div style={{ marginBottom: 48 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <p className="b-label">ACTIVITÉ</p>
+          <button onClick={loadTxs} className="b-btn-ghost" style={{ fontSize: 11 }}>
+            ↻ {loadingTxs ? 'Lecture…' : 'Actualiser'}
+          </button>
+        </div>
+
+        <hr className="b-divider" />
+
+        {txs.length === 0 && !loadingTxs && (
+          <div style={{ padding: '32px 0', textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-3)' }}>Aucun mouvement dans les 3 derniers jours.</p>
+          </div>
+        )}
+
+        {txs.map((t) => (
+          <div
+            key={t.hash}
             style={{
-              fontSize: 13, fontWeight: 500,
-              padding: '8px 18px', borderRadius: 9,
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              background: tab === t ? '#FFFFFF' : 'transparent',
-              color:      tab === t ? '#0F172A' : '#64748B',
-              boxShadow:  tab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '18px 0',
+              borderBottom: '1px solid var(--line)',
             }}
           >
-            {t === 'overview' ? 'Overview' : 'On-chain'}
-          </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span style={{
+                width: 32, height: 32, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                border: '1px solid var(--line)', borderRadius: 2,
+                fontSize: 14, color: t.type === 'in' ? 'var(--success)' : 'var(--text-2)',
+              }}>
+                {t.type === 'in' ? '↓' : '↑'}
+              </span>
+              <div>
+                <p className="mono" style={{
+                  fontSize: 14, color: 'var(--text)',
+                  fontWeight: 500, marginBottom: 2,
+                }}>
+                  {t.type === 'in' ? '+' : '−'} €&nbsp;{fmtEur(t.amount)}
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                  {t.type === 'in' ? 'Approvisionnement' : 'Retrait'} · {timeAgo(t.date)}
+                </p>
+              </div>
+            </div>
+            <a
+              href={`${BASESCAN_URL}/tx/${t.hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mono"
+              style={{ fontSize: 11, color: 'var(--text-3)', textDecoration: 'none' }}
+            >
+              {t.hash.slice(0, 6)}···{t.hash.slice(-4)} ↗
+            </a>
+          </div>
         ))}
       </div>
 
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* OVERVIEW TAB                                          */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {tab === 'overview' && (
-        <div>
-
-          {/* Balance card */}
-          <div style={{
-            background: '#0F172A', borderRadius: 20,
-            padding: '32px 28px', marginBottom: 16, color: '#FFFFFF',
-          }}>
-            <p style={{ fontSize: 11, color: '#64748B', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Your balance in vault
+      {/* ── Self-custody footer ────────────────────────── */}
+      <div className="b-surface" style={{
+        padding: '20px 24px',
+        background: 'transparent',
+        borderColor: 'var(--line)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <span style={{ fontSize: 14, color: 'var(--success)' }}>◆</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>
+              Tu détiens tes clés.
             </p>
-            <p style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1, marginBottom: 4, fontVariantNumeric: 'tabular-nums' }}>
-              € {myBalance}
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+              Personne ne peut bloquer tes retraits. Tu peux partir avec tes fonds à tout moment.
+              Cette propriété est inscrite dans le code, pas dans une promesse.
             </p>
-            <p style={{ fontSize: 13, color: '#475569', marginBottom: 28 }}>
-              Withdrawable: € {maxOut}
-            </p>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => openModal('deposit')}
-                disabled={isAuthorized === false}
-                title={isAuthorized === false ? 'Complete KYC verification via Coinbase first' : undefined}
-                className="btn"
-                style={{
-                  background: '#FFFFFF', color: '#0F172A', flex: 1, fontSize: 13, padding: '12px 20px',
-                  opacity: isAuthorized === false ? 0.4 : 1,
-                  cursor: isAuthorized === false ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Deposit
-              </button>
-              <button
-                onClick={() => openModal('withdraw')}
-                className="btn"
-                style={{ background: 'rgba(255,255,255,0.08)', color: '#FFFFFF', flex: 1, fontSize: 13, padding: '12px 20px' }}
-              >
-                Withdraw
-              </button>
-            </div>
           </div>
-
-          {/* ── KYC status ────────────────────────────────── */}
-
-          {/* Testnet : selfRegister one-click */}
-          {isAuthorized === false && isTestnet && (
-            <div style={{
-              border: '1px solid #E2E8F0',
-              background: '#F8FAFC',
-              borderRadius: 12,
-              padding: '16px 20px',
-              marginBottom: 16,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 15 }}>🧪</span>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
-                  Testnet — get instant access
-                </p>
-              </div>
-              <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
-                On Base Sepolia, KYC is bypassed for testing. One click registers your wallet on-chain.
-              </p>
-              <button
-                onClick={handleSelfRegister}
-                disabled={registering}
-                className="btn btn-dark"
-                style={{ fontSize: 12, padding: '10px 18px', opacity: registering ? 0.6 : 1 }}
-              >
-                {registering ? 'Registering…' : 'Get testnet access'}
-              </button>
-              {registerError && (
-                <p style={{ fontSize: 11, color: '#EF4444', marginTop: 8 }}>{registerError}</p>
-              )}
-            </div>
-          )}
-
-          {/* Mainnet : Coinbase Verifications flow */}
-          {isAuthorized === false && !isTestnet && !verifyClicked && (
-            <div style={{
-              border: '1px solid #E2E8F0',
-              background: '#F8FAFC',
-              borderRadius: 12,
-              padding: '16px 20px',
-              marginBottom: 16,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 15 }}>🔒</span>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
-                  Verify your identity to deposit
-                </p>
-              </div>
-              <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, marginBottom: 14 }}>
-                One-time verification via Coinbase. Takes 2 minutes. Withdrawals are always available regardless.
-              </p>
-              <a
-                href="https://coinbase.com/onchain-verify"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setVerifyClicked(true)}
-                className="btn btn-dark"
-                style={{ fontSize: 12, padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
-              >
-                Verify with Coinbase
-                <span style={{ fontSize: 11, opacity: 0.7 }}>↗</span>
-              </a>
-            </div>
-          )}
-
-          {isAuthorized === false && !isTestnet && verifyClicked && (
-            <div style={{
-              border: '1px solid #DBEAFE',
-              background: '#EFF6FF',
-              borderRadius: 12,
-              padding: '16px 20px',
-              marginBottom: 16,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 14 }}>⏳</span>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>
-                  Waiting for verification…
-                </p>
-              </div>
-              <p style={{ fontSize: 12, color: '#3B82F6', lineHeight: 1.6, marginBottom: 14 }}>
-                Complete the process on Coinbase, then come back. We check automatically every 5 seconds.
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#60A5FA' }}>
-                  <span className="live-dot" style={{ background: '#60A5FA' }} />
-                  Checking…
-                </span>
-                <a
-                  href="https://coinbase.com/onchain-verify"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 11, color: '#3B82F6', textDecoration: 'underline' }}
-                >
-                  Open Coinbase again ↗
-                </a>
-              </div>
-            </div>
-          )}
-
-          {isAuthorized === true && (
-            <div style={{
-              background: '#F0FDF4', border: '1px solid #BBF7D0',
-              borderRadius: 12, padding: '10px 16px',
-              display: 'flex', alignItems: 'center', gap: 8,
-              marginBottom: 16,
-            }}>
-              <span style={{ fontSize: 13 }}>✅</span>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#166534' }}>
-                Account verified — deposits enabled
-              </p>
-            </div>
-          )}
-
-          {/* Stat grid — 2x2 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
-
-            {/* Wallet EURC */}
-            <div className="card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-                Wallet EURC
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                € {walletEurc}
-              </p>
-              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Available to deposit</p>
-            </div>
-
-            {/* Protocol TVL */}
-            <div className="card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-                Protocol TVL
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                € {TVL}
-              </p>
-              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Total member deposits</p>
-            </div>
-
-            {/* $FBK Claimable */}
-            <div className="card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-                $FBK Claimable
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                {fbkPending}
-              </p>
-              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Governance tokens earned</p>
-              {pendingFbk !== undefined && pendingFbk > 0n && (
-                <>
-                  <button
-                    onClick={handleClaim}
-                    disabled={claiming}
-                    className="btn btn-ghost"
-                    style={{ marginTop: 10, fontSize: 11, padding: '6px 12px', width: '100%', opacity: claiming ? 0.5 : 1 }}
-                  >
-                    {claiming ? 'Claiming…' : 'Claim'}
-                  </button>
-                  {claimError && (
-                    <p style={{ fontSize: 11, color: '#EF4444', marginTop: 6, textAlign: 'center' }}>{claimError}</p>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* $FBK in wallet */}
-            <div className="card" style={{ padding: '20px' }}>
-              <p style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8 }}>
-                $FBK in Wallet
-              </p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                {fbkWallet}
-              </p>
-              <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Governance tokens held</p>
-              {fbkBalance !== undefined && fbkBalance > 0n && (
-                <a
-                  href={`${BASESCAN_URL}/token/${CONTRACTS.FBK_TOKEN}?a=${address}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'inline-block', marginTop: 10, fontSize: 11, color: '#64748B', textDecoration: 'none' }}
-                >
-                  View on Basescan ↗
-                </a>
-              )}
-            </div>
-
-          </div>
-
-          {/* Withdrawal guarantee */}
-          <div style={{
-            background: '#F0FDF4', border: '1px solid #BBF7D0',
-            borderRadius: 14, padding: '16px 20px',
-            display: 'flex', alignItems: 'flex-start', gap: 12,
-            marginBottom: 12,
-          }}>
-            <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>🔒</span>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#166534', marginBottom: 2 }}>
-                Withdrawal guarantee
-              </p>
-              <p style={{ fontSize: 12, color: '#16a34a', lineHeight: 1.5 }}>
-                Your funds are technically impossible to block. Withdrawal access is
-                hard-coded in the smart contract — no entity, including FinBank, can prevent it.
-              </p>
-            </div>
-          </div>
-
-          {/* ── Testnet faucet ─────────────────────────────── */}
-          <div style={{
-            border: '1px dashed #E2E8F0',
-            borderRadius: 14, padding: '16px 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 16,
-          }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: '#94A3B8',
-                  background: '#F1F5F9', borderRadius: 4, padding: '2px 6px',
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                }}>
-                  Testnet
-                </span>
-              </div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', marginBottom: 2 }}>
-                Get test EURC
-              </p>
-              <p style={{ fontSize: 12, color: '#94A3B8' }}>
-                Mint 1,000 MockEURC to your wallet — free on Sepolia
-              </p>
-            </div>
-            <button
-              onClick={handleMint}
-              disabled={minting}
-              className="btn btn-ghost"
-              style={{
-                fontSize: 13, padding: '10px 20px', whiteSpace: 'nowrap', flexShrink: 0,
-                background: mintSuccess ? '#F0FDF4' : undefined,
-                color: mintSuccess ? '#16a34a' : undefined,
-              }}
-            >
-              {minting ? 'Minting…' : mintSuccess ? '✓ Minted!' : '+ 1,000 EURC'}
-            </button>
-          </div>
-          {mintError && (
-            <p role="alert" aria-live="polite" style={{ fontSize: 12, color: '#EF4444', marginTop: 8, paddingLeft: 4 }}>
-              {mintError}
-            </p>
-          )}
-
         </div>
-      )}
+      </div>
 
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* ON-CHAIN TAB                                          */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {tab === 'onchain' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Vault live reads */}
-          <div className="card" style={{ padding: '24px', background: '#0F172A', border: 'none' }}>
-            <p style={{ fontSize: 11, color: '#475569', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>
-              FinBankVault.sol
-            </p>
-            <p style={{ fontSize: 12, fontFamily: 'monospace', color: '#64748B', marginBottom: 16 }}>
-              {CONTRACTS.VAULT}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                {
-                  fn: 'totalAssets()',
-                  value: totalAssets?.toString() ?? '···',
-                  note: 'raw EURC (6 decimals)',
-                },
-                {
-                  fn: `balanceOf(${address ? address.slice(0, 6) : '…'}…)`,
-                  value: userShares?.toString() ?? '···',
-                  note: 'vault shares (6 decimals)',
-                },
-                {
-                  fn: 'convertToAssets(shares)',
-                  value: userAssets?.toString() ?? '···',
-                  note: 'EURC value of your shares',
-                },
-                {
-                  fn: `maxWithdraw(${address ? address.slice(0, 6) : '…'}…)`,
-                  value: maxWithdrawable?.toString() ?? '···',
-                  note: 'max EURC withdrawable',
-                },
-              ].map(({ fn, value, note }) => (
-                <div key={fn} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px 16px' }}>
-                  <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748B', marginBottom: 6 }}>{fn}</p>
-                  <p style={{ fontSize: 14, fontFamily: 'monospace', color: '#FFFFFF', fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>
-                    {value}
-                  </p>
-                  <p style={{ fontSize: 10, color: '#334155', marginTop: 4 }}>{note}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Other contracts */}
-          {[
-            { label: 'FBKToken.sol',        addr: CONTRACTS.FBK_TOKEN   },
-            { label: 'FBKDistributor.sol',   addr: CONTRACTS.DISTRIBUTOR },
-            { label: 'VeFBK.sol',            addr: CONTRACTS.VE_FBK     },
-            { label: 'FinBankGovernor.sol',  addr: CONTRACTS.GOVERNOR    },
-            { label: 'CoinbaseEASChecker.sol', addr: CONTRACTS.EAS_CHECKER },
-          ].map(({ label, addr }) => (
-            <div key={label} className="card" style={{ padding: '18px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', marginBottom: 2 }}>{label}</p>
-                <p style={{ fontSize: 11, fontFamily: 'monospace', color: '#94A3B8' }}>{addr}</p>
-              </div>
-              <a
-                href={`${BASESCAN_URL}/address/${addr}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: 11, color: '#64748B', textDecoration: 'none', whiteSpace: 'nowrap', marginLeft: 16 }}
-              >
-                Basescan ↗
-              </a>
-            </div>
-          ))}
-
-          <button
-            onClick={refetchAll}
-            className="btn btn-ghost"
-            style={{ alignSelf: 'flex-start', fontSize: 12, padding: '10px 18px' }}
-          >
-            ↻ Refresh
-          </button>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* DEPOSIT MODAL                                         */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {activeModal === 'deposit' && (
-        <Modal title="Deposit EURC" onClose={closeModal}>
-          <p style={{ fontSize: 13, color: '#64748B', marginBottom: 20, lineHeight: 1.6 }}>
-            Deposit EURC into the FinBank Vault. You will receive fbEURC shares
-            representing your position, which accrue yield automatically.
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* MODAL — RECEVOIR (deposit)                              */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {modal === 'recevoir' && (
+        <DarkModal title="RECEVOIR DANS LE COFFRE" onClose={closeModal}>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 24, lineHeight: 1.6 }}>
+            Le montant sera placé dans la réserve commune et générera un rendement automatique.
+            Tu peux le retirer à tout moment.
           </p>
 
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 8 }}>
-            Amount (EURC)
-          </label>
-          <div style={{ position: 'relative', marginBottom: 6 }}>
+          <p className="b-label" style={{ marginBottom: 8 }}>MONTANT</p>
+          <div style={{ position: 'relative', marginBottom: 8 }}>
             <span style={{
-              position: 'absolute', left: 16, top: '50%',
-              transform: 'translateY(-50%)', fontSize: 15, color: '#94A3B8',
+              position: 'absolute', left: 18, top: '50%',
+              transform: 'translateY(-50%)', fontSize: 16, color: 'var(--text-3)',
               pointerEvents: 'none',
             }}>€</span>
             <input
-              className="input"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
+              className="b-input"
               autoFocus
               type="number"
               min="0"
@@ -893,112 +645,81 @@ export default function AccountView() {
                 setDepositError(null)
               }}
               disabled={depositStep === 'approving' || depositStep === 'depositing'}
-              style={{ paddingLeft: 32 }}
+              style={{ paddingLeft: 36 }}
             />
           </div>
-
-          {/* Wallet balance + MAX button */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <p style={{ fontSize: 11, color: '#94A3B8' }}>
-              Wallet: € {walletEurc} EURC
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              Disponible · €&nbsp;{walletEur}
             </p>
             {eurcBalance !== undefined && eurcBalance > 0n && (
               <button
                 onClick={() => setDepositAmount(formatUnits(eurcBalance, 6))}
-                style={{ fontSize: 11, color: '#64748B', background: '#F1F5F9', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+                className="b-btn-ghost"
+                style={{ fontSize: 11 }}
               >
                 MAX
               </button>
             )}
           </div>
 
-          {/* Progress indicator */}
-          {(depositStep === 'approving' || depositStep === 'depositing' || depositStep === 'success') && (
-            <div style={{
-              background: '#F8FAFC', border: '1px solid #E2E8F0',
-              borderRadius: 10, padding: '12px 16px', marginBottom: 16,
-            }}>
-              <div style={{ display: 'flex', gap: 16 }}>
-                {[
-                  { label: '1. Approve', done: depositStep === 'depositing' || depositStep === 'success', active: depositStep === 'approving' },
-                  { label: '2. Deposit', done: depositStep === 'success',    active: depositStep === 'depositing' },
-                ].map(({ label, done, active }) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: done ? '#22C55E' : active ? '#0F172A' : '#E2E8F0',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, color: '#FFFFFF', flexShrink: 0,
-                    }}>
-                      {done ? '✓' : active ? '…' : ''}
-                    </span>
-                    <span style={{ fontSize: 12, color: active ? '#0F172A' : done ? '#22C55E' : '#94A3B8', fontWeight: active ? 600 : 400 }}>
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
           {depositError && (
-            <p
-              role="alert"
-              aria-live="polite"
-              style={{ fontSize: 12, color: '#EF4444', marginBottom: 12, padding: '10px 14px', background: '#FEF2F2', borderRadius: 8 }}
-            >
+            <p role="alert" style={{
+              fontSize: 12, color: 'var(--danger)',
+              marginBottom: 16, padding: '10px 14px',
+              background: 'rgba(229, 72, 77, 0.08)', borderRadius: 2,
+            }}>
               {depositError}
             </p>
           )}
 
           <button
             onClick={depositStep === 'success' ? closeModal : handleDeposit}
-            disabled={depositDisabled}
-            className="btn btn-dark"
+            disabled={!depositAmount || depositStep === 'approving' || depositStep === 'depositing'}
+            className="b-btn"
             style={{ width: '100%' }}
           >
-            {depositStep === 'success' ? 'Done ✓' : depositLabel()}
+            {depositStep === 'success' ? 'TERMINÉ ✓' : depositLabel}
           </button>
 
           {depositStep !== 'approving' && depositStep !== 'depositing' && (
-            <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 10, textAlign: 'center' }}>
+            <p className="mono" style={{
+              fontSize: 10, color: 'var(--text-3)',
+              marginTop: 12, textAlign: 'center', letterSpacing: '0.08em',
+            }}>
               {(allowance ?? 0n) >= (safeParseUnits(depositAmount, 6) ?? 0n) && depositAmount
-                ? '✓ Already approved — 1 signature required'
-                : '2 wallet signatures required (approve + deposit)'}
+                ? 'AUTORISATION DÉJÀ DONNÉE — 1 SIGNATURE'
+                : '2 SIGNATURES · AUTORISATION + TRANSFERT'}
             </p>
           )}
-        </Modal>
+        </DarkModal>
       )}
 
-      {/* ══════════════════════════════════════════════════════ */}
-      {/* WITHDRAW MODAL                                        */}
-      {/* ══════════════════════════════════════════════════════ */}
-      {activeModal === 'withdraw' && (
-        <Modal title="Withdraw" onClose={closeModal}>
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* MODAL — ENVOYER (withdraw)                              */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {modal === 'envoyer' && (
+        <DarkModal title="ENVOYER DEPUIS LE COFFRE" onClose={closeModal}>
           <div style={{
-            background: '#F0FDF4', border: '1px solid #BBF7D0',
-            borderRadius: 10, padding: '10px 14px', marginBottom: 20,
-            display: 'flex', gap: 8, alignItems: 'center',
+            border: '1px solid var(--line)', borderRadius: 2,
+            padding: '12px 16px', marginBottom: 24,
+            display: 'flex', gap: 10, alignItems: 'flex-start',
           }}>
-            <span style={{ fontSize: 13 }}>🔒</span>
-            <p style={{ fontSize: 12, color: '#166534', lineHeight: 1.5 }}>
-              Withdrawals cannot be blocked by anyone, including FinBank.
+            <span style={{ fontSize: 12, color: 'var(--success)', marginTop: 2 }}>◆</span>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+              Aucune entité — y compris FinBank — ne peut bloquer ce retrait.
             </p>
           </div>
 
-          <label style={{ fontSize: 12, fontWeight: 600, color: '#64748B', display: 'block', marginBottom: 8 }}>
-            Amount to withdraw (EURC)
-          </label>
-          <div style={{ position: 'relative', marginBottom: 6 }}>
+          <p className="b-label" style={{ marginBottom: 8 }}>MONTANT À ENVOYER</p>
+          <div style={{ position: 'relative', marginBottom: 8 }}>
             <span style={{
-              position: 'absolute', left: 16, top: '50%',
-              transform: 'translateY(-50%)', fontSize: 15, color: '#94A3B8',
+              position: 'absolute', left: 18, top: '50%',
+              transform: 'translateY(-50%)', fontSize: 16, color: 'var(--text-3)',
               pointerEvents: 'none',
             }}>€</span>
             <input
-              className="input"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
+              className="b-input"
               autoFocus
               type="number"
               min="0"
@@ -1011,58 +732,124 @@ export default function AccountView() {
                 setWithdrawError(null)
               }}
               disabled={withdrawStep === 'withdrawing'}
-              style={{ paddingLeft: 32 }}
+              style={{ paddingLeft: 36 }}
             />
           </div>
-
-          {/* Available + MAX */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <p style={{ fontSize: 11, color: '#94A3B8' }}>
-              Available: € {maxOut} EURC
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
+              Maximum · €&nbsp;{maxOutEur}
             </p>
             {maxWithdrawable !== undefined && maxWithdrawable > 0n && (
               <button
                 onClick={() => setWithdrawAmount(formatUnits(maxWithdrawable, 6))}
-                style={{ fontSize: 11, color: '#64748B', background: '#F1F5F9', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+                className="b-btn-ghost"
+                style={{ fontSize: 11 }}
               >
                 MAX
               </button>
             )}
           </div>
 
-          {/* Error */}
           {withdrawError && (
-            <p
-              role="alert"
-              aria-live="polite"
-              style={{ fontSize: 12, color: '#EF4444', marginBottom: 12, padding: '10px 14px', background: '#FEF2F2', borderRadius: 8 }}
-            >
+            <p role="alert" style={{
+              fontSize: 12, color: 'var(--danger)',
+              marginBottom: 16, padding: '10px 14px',
+              background: 'rgba(229, 72, 77, 0.08)', borderRadius: 2,
+            }}>
               {withdrawError}
             </p>
           )}
 
           <button
             onClick={withdrawStep === 'success' ? closeModal : handleWithdraw}
-            disabled={withdrawDisabled}
-            className="btn btn-dark"
+            disabled={!withdrawAmount || withdrawStep === 'withdrawing'}
+            className="b-btn"
             style={{ width: '100%' }}
           >
-            {withdrawStep === 'withdrawing' ? 'Withdrawing…' : withdrawStep === 'success' ? 'Done ✓' : 'Withdraw'}
+            {withdrawStep === 'withdrawing' ? 'TRANSFERT EN COURS…'
+              : withdrawStep === 'success' ? 'TERMINÉ ✓' : 'ENVOYER'}
           </button>
-        </Modal>
+        </DarkModal>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* MODAL — SOUVERAINETÉ (settings)                         */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {showSettings && (
+        <DarkModal title="PARAMÈTRES DE SOUVERAINETÉ" onClose={() => setShowSettings(false)}>
+
+          <SovBlock label="ADRESSE" value={
+            <span className="mono">{address?.slice(0, 10)}···{address?.slice(-8)}</span>
+          } />
+
+          <SovBlock label="RÉSERVE COMMUNE" value={
+            <span className="mono">€&nbsp;{fmtEur(totalAssets)}</span>
+          } sub="Total des dépôts membres" />
+
+          <SovBlock label="RÉCOMPENSES DISPONIBLES" value={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <span className="mono">{fbkPend} FBK</span>
+              {pendingFbk !== undefined && pendingFbk > 0n && (
+                <button
+                  onClick={handleClaim}
+                  disabled={claiming}
+                  className="b-btn"
+                  style={{ fontSize: 11, padding: '10px 16px' }}
+                >
+                  {claiming ? 'EN COURS…' : 'COLLECTER'}
+                </button>
+              )}
+            </div>
+          } sub={claimError ?? 'Tokens de gouvernance gagnés par usage'} subError={!!claimError} />
+
+          <SovBlock label="MES PARTS" value={
+            <span className="mono">{fbkOwn} FBK</span>
+          } sub="Tu es co-propriétaire du protocole" />
+
+          <SovBlock label="VÉRIFIER ON-CHAIN" value={
+            <a
+              href={`${BASESCAN_URL}/address/${CONTRACTS.VAULT}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 12, color: 'var(--text)', textDecoration: 'none', borderBottom: '1px solid var(--line-strong)' }}
+            >
+              Coffre.sol ↗
+            </a>
+          } sub="Toute donnée est vérifiable publiquement" />
+
+          {/* Faucet (testnet) */}
+          {isTestnet && (
+            <>
+              <hr className="b-divider" style={{ margin: '20px 0' }} />
+              <p className="b-label" style={{ marginBottom: 8 }}>RÉSEAU DE TEST</p>
+              <p style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
+                Mint 1 000 € factices pour tester. Aucune valeur réelle.
+              </p>
+              <button
+                onClick={handleMint}
+                disabled={minting}
+                className="b-btn b-btn-outline"
+                style={{ fontSize: 11 }}
+              >
+                {minting ? 'EN COURS…' : '+ 1 000 €  TEST'}
+              </button>
+              {mintError && (
+                <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 8 }}>{mintError}</p>
+              )}
+            </>
+          )}
+        </DarkModal>
       )}
 
     </div>
   )
 }
 
-/* ══════════════════════════════════════════════════════════ */
-/* Modal wrapper                                             */
-/* ══════════════════════════════════════════════════════════ */
-function Modal({
-  title,
-  onClose,
-  children,
+/* ═══════════════════════════════════════════════════════════ */
+/* Dark modal                                                  */
+/* ═══════════════════════════════════════════════════════════ */
+function DarkModal({
+  title, onClose, children,
 }: {
   title: string
   onClose: () => void
@@ -1072,31 +859,60 @@ function Modal({
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(15,23,42,0.6)',
+        background: 'rgba(0,0,0,0.85)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}
       onClick={onClose}
     >
       <div
-        className="card"
-        style={{ width: '100%', maxWidth: 440, padding: '28px' }}
+        style={{
+          width: '100%', maxWidth: 460,
+          background: 'var(--surface)',
+          border: '1px solid var(--line)',
+          borderRadius: 4,
+          padding: '32px 28px',
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em' }}>
-            {title}
-          </h2>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 24,
+        }}>
+          <h2 className="b-label" style={{ fontSize: 11, color: 'var(--text)' }}>{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Close"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', fontSize: 22, lineHeight: 1, padding: '0 4px' }}
-          >
-            ×
-          </button>
+            aria-label="Fermer"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-2)', fontSize: 22, lineHeight: 1, padding: '0 4px',
+            }}
+          >×</button>
         </div>
         {children}
       </div>
+    </div>
+  )
+}
+
+/* ── Sovereignty block helper ─────────────────────────────── */
+function SovBlock({
+  label, value, sub, subError,
+}: {
+  label: string
+  value: React.ReactNode
+  sub?: string
+  subError?: boolean
+}) {
+  return (
+    <div style={{ paddingBottom: 18, marginBottom: 18, borderBottom: '1px solid var(--line)' }}>
+      <p className="b-label" style={{ marginBottom: 6 }}>{label}</p>
+      <div style={{ fontSize: 14, color: 'var(--text)' }}>{value}</div>
+      {sub && (
+        <p style={{ fontSize: 11, color: subError ? 'var(--danger)' : 'var(--text-3)', marginTop: 6 }}>
+          {sub}
+        </p>
+      )}
     </div>
   )
 }

@@ -6,8 +6,8 @@ export default function ConnectWallet() {
   const { connect, connectors, isPending, error } = useConnect()
 
   const cbWallet = connectors.find(c => c.id === 'coinbaseWalletSDK')
-  const injected  = connectors.find(c => c.id === 'injected')
-  const hasAny    = cbWallet || injected
+  const injected = connectors.find(c => c.id === 'injected')
+  const hasAny   = cbWallet || injected
 
   return (
     <div style={{
@@ -15,59 +15,54 @@ export default function ConnectWallet() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#F8FAFC',
-      padding: '88px 24px 24px', // 64px navbar + 24px
+      background: 'var(--bg)',
+      padding: '88px 24px 24px',
     }}>
-      <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ width: '100%', maxWidth: 420 }}>
 
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: '#0F172A',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px',
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 56 }}>
+          <p className="b-label" style={{ marginBottom: 24 }}>FINBANK · COFFRE SOUVERAIN</p>
+          <h1 style={{
+            fontSize: 22, fontWeight: 500, color: 'var(--text)',
+            letterSpacing: '-0.02em', marginBottom: 14,
+            fontFamily: 'SF Mono, Menlo, monospace',
           }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>FB</span>
-          </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: 8 }}>
-            Welcome to FinBank
+            Authentification
           </h1>
-          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6 }}>
-            Connect your wallet to access your account
+          <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
+            Authentifie-toi avec ta clé biométrique pour accéder à ton coffre.
           </p>
         </div>
 
         {/* Connect options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {cbWallet && (
             <button
               onClick={() => connect({ connector: cbWallet })}
               disabled={isPending}
-              className="btn btn-dark"
-              style={{ width: '100%', justifyContent: 'flex-start', gap: 14, padding: '16px 20px', opacity: isPending ? 0.7 : 1 }}
+              className="b-btn"
+              style={{
+                width: '100%', justifyContent: 'space-between',
+                padding: '20px 20px', fontSize: 12,
+                opacity: isPending ? 0.6 : 1,
+              }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: 'rgba(255,255,255,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, flexShrink: 0,
-              }}>
-                {isPending ? '⏳' : '🔑'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ fontSize: 14 }}>◉</span>
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.08em' }}>
+                    {isPending ? 'CONNEXION…' : 'PASSKEY · BIOMÉTRIE'}
+                  </p>
+                  <p className="mono" style={{
+                    fontSize: 10, color: 'rgba(10,10,10,0.6)',
+                    marginTop: 4, letterSpacing: 0, textTransform: 'none', fontWeight: 400,
+                  }}>
+                    Face ID · Sans phrase de récupération
+                  </p>
+                </div>
               </div>
-              <div style={{ textAlign: 'left' }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#FFFFFF', lineHeight: 1 }}>
-                  {isPending ? 'Connecting…' : 'Base Smart Wallet'}
-                </p>
-                <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 3 }}>
-                  Face ID · No seed phrase
-                </p>
-              </div>
-              {!isPending && (
-                <span style={{ marginLeft: 'auto', color: '#64748B', fontSize: 12 }}>
-                  Recommended
-                </span>
-              )}
+              <span style={{ fontSize: 10, opacity: 0.6 }}>RECOMMANDÉ</span>
             </button>
           )}
 
@@ -75,71 +70,89 @@ export default function ConnectWallet() {
             <button
               onClick={() => connect({ connector: injected })}
               disabled={isPending}
-              className="btn btn-outline"
-              style={{ width: '100%', justifyContent: 'flex-start', gap: 14, padding: '16px 20px', opacity: isPending ? 0.5 : 1 }}
+              className="b-btn b-btn-outline"
+              style={{
+                width: '100%', justifyContent: 'flex-start',
+                padding: '20px 20px', fontSize: 12, gap: 14,
+                opacity: isPending ? 0.5 : 1,
+              }}
             >
-              <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: '#F1F5F9',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, flexShrink: 0,
-              }}>
-                🦊
-              </div>
+              <span style={{ fontSize: 14 }}>◇</span>
               <div style={{ textAlign: 'left' }}>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', lineHeight: 1 }}>
-                  MetaMask / Browser Wallet
+                <p style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em' }}>
+                  PORTEFEUILLE NAVIGATEUR
                 </p>
-                <p style={{ fontSize: 11, color: '#94A3B8', marginTop: 3 }}>
-                  Injected provider
+                <p className="mono" style={{
+                  fontSize: 10, color: 'var(--text-3)',
+                  marginTop: 4, letterSpacing: 0, textTransform: 'none',
+                }}>
+                  MetaMask · Rabby · Coinbase Wallet
                 </p>
               </div>
             </button>
           )}
 
-          {/* No wallet detected */}
           {!hasAny && (
-            <div style={{
-              textAlign: 'center', padding: '24px',
-              background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14,
-            }}>
-              <p style={{ fontSize: 14, color: '#64748B', marginBottom: 8 }}>No wallet detected</p>
+            <div className="b-surface" style={{ textAlign: 'center', padding: '24px' }}>
+              <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 10 }}>
+                Aucun portefeuille détecté
+              </p>
               <a
                 href="https://www.coinbase.com/wallet"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 13, color: '#0F172A', fontWeight: 600 }}
+                style={{
+                  fontSize: 11, color: 'var(--text)', fontWeight: 500,
+                  borderBottom: '1px solid var(--line-strong)',
+                  textDecoration: 'none', letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}
               >
-                Install Coinbase Wallet ↗
+                Installer Coinbase Wallet ↗
               </a>
             </div>
           )}
         </div>
 
-        {/* Connection error */}
+        {/* Error */}
         {error && (
           <div
             role="alert"
             aria-live="polite"
             style={{
               marginTop: 16, padding: '12px 16px',
-              background: '#FEF2F2', border: '1px solid #FECDD3',
-              borderRadius: 10,
+              background: 'rgba(229, 72, 77, 0.08)',
+              border: '1px solid rgba(229, 72, 77, 0.25)',
+              borderRadius: 2,
             }}
           >
-            <p style={{ fontSize: 13, color: '#EF4444' }}>
+            <p style={{ fontSize: 12, color: 'var(--danger)' }}>
               {error.message.includes('rejected') || error.message.includes('4001')
-                ? 'Connection rejected. Please try again.'
-                : 'Connection failed. Please try again.'}
+                ? 'Connexion annulée. Réessaie.'
+                : 'Connexion impossible. Réessaie.'}
             </p>
           </div>
         )}
 
-        {/* Fine print */}
-        <p style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: 28, lineHeight: 1.6 }}>
-          By connecting, you agree to interact with smart contracts
-          on Base Sepolia (testnet).
-        </p>
+        {/* Self-custody reminder */}
+        <div style={{
+          marginTop: 40,
+          padding: '16px 0',
+          borderTop: '1px solid var(--line)',
+        }}>
+          <p style={{
+            fontSize: 11, color: 'var(--text-2)', textAlign: 'center',
+            lineHeight: 1.7, letterSpacing: '0.02em',
+          }}>
+            Tu détiens tes clés. Personne ne peut bloquer ton accès.
+          </p>
+          <p className="mono" style={{
+            fontSize: 9, color: 'var(--text-3)', textAlign: 'center',
+            marginTop: 8, letterSpacing: '0.1em',
+          }}>
+            BASE SEPOLIA · RÉSEAU DE TEST
+          </p>
+        </div>
 
       </div>
     </div>

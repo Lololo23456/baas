@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design tokens ───────────────────────────────────── */
+/* ── Light tokens (landing) ──────────────────────────── */
 :root {
   --white:      #FFFFFF;
   --gray-50:    #F8FAFC;
@@ -12,6 +12,19 @@
   --gray-500:   #64748B;
   --gray-900:   #0F172A;
   --black:      #000000;
+
+  /* ── Dark brutalist tokens (app) ─────────────────── */
+  --bg:         #0A0A0A;
+  --surface:    #141414;
+  --surface-2:  #1A1A1A;
+  --line:       rgba(255, 255, 255, 0.08);
+  --line-strong:rgba(255, 255, 255, 0.18);
+  --text:       #F5F5F5;
+  --text-2:     #888888;
+  --text-3:     #555555;
+  --accent:     #F5F5F5;
+  --danger:     #E5484D;
+  --success:    #4FCC8A;
 }
 
 /* ── Base ────────────────────────────────────────────── */
@@ -27,11 +40,19 @@ body {
   line-height: 1.6;
 }
 
+/* When in app: switch to dark brutalist */
+body.app {
+  background: var(--bg);
+  color: var(--text);
+}
+
 ::selection { background: rgba(15, 23, 42, 0.08); }
+body.app ::selection { background: rgba(255, 255, 255, 0.15); }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+body.app ::-webkit-scrollbar-thumb { background: #2A2A2A; }
 
 /* ── Typography helpers ──────────────────────────────── */
 .display {
@@ -42,16 +63,20 @@ body {
 
 .tabular { font-variant-numeric: tabular-nums; }
 
-/* ── Components ──────────────────────────────────────── */
+.mono {
+  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 
-/* Card */
+/* ── Light components (landing) ──────────────────────── */
+
 .card {
   background: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: 20px;
 }
 
-/* Pill badge */
 .pill {
   display: inline-flex;
   align-items: center;
@@ -66,7 +91,6 @@ body {
   border-radius: 100px;
 }
 
-/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -92,10 +116,7 @@ body {
   pointer-events: none;
 }
 
-.btn-dark {
-  background: var(--gray-900);
-  color: var(--white);
-}
+.btn-dark    { background: var(--gray-900); color: var(--white); }
 .btn-dark:hover { background: #1e2d4a; }
 
 .btn-outline {
@@ -103,18 +124,11 @@ body {
   color: var(--gray-900);
   border: 1.5px solid var(--gray-200);
 }
-.btn-outline:hover {
-  border-color: var(--gray-900);
-  background: var(--gray-50);
-}
+.btn-outline:hover { border-color: var(--gray-900); background: var(--gray-50); }
 
-.btn-ghost {
-  background: var(--gray-100);
-  color: var(--gray-900);
-}
+.btn-ghost   { background: var(--gray-100); color: var(--gray-900); }
 .btn-ghost:hover { background: var(--gray-200); }
 
-/* Input */
 .input {
   width: 100%;
   font-family: inherit;
@@ -131,7 +145,6 @@ body {
 .input:focus { border-color: var(--gray-900); background: var(--white); }
 .input::placeholder { color: var(--gray-400); }
 
-/* Live dot */
 .live-dot {
   display: inline-block;
   width: 7px;
@@ -146,7 +159,6 @@ body {
   50%       { opacity: 0.5; transform: scale(0.85); }
 }
 
-/* Fade-up animation */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -159,3 +171,102 @@ body {
 .delay-2 { animation-delay: 0.2s; }
 .delay-3 { animation-delay: 0.3s; }
 .delay-4 { animation-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════════════════ */
+/* DARK BRUTALIST COMPONENTS (in /app)                     */
+/* ═══════════════════════════════════════════════════════ */
+
+.b-surface {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.b-divider {
+  height: 1px;
+  background: var(--line);
+  border: none;
+  margin: 0;
+}
+
+.b-label {
+  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.b-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 2px;
+  padding: 18px 24px;
+  background: var(--text);
+  color: var(--bg);
+  border: 1px solid var(--text);
+}
+.b-btn:hover { background: #DDDDDD; border-color: #DDDDDD; }
+.b-btn:disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+.b-btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+}
+.b-btn-outline:hover {
+  border-color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.b-btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.b-btn-ghost:hover { color: var(--text); border-color: var(--line); }
+
+.b-input {
+  width: 100%;
+  font-family: 'SF Mono', 'JetBrains Mono', 'Menlo', monospace;
+  font-size: 18px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 18px 20px;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  letter-spacing: -0.01em;
+}
+.b-input:focus { border-color: var(--text-2); }
+.b-input::placeholder { color: var(--text-3); }
+
+.b-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}

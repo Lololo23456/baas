@@ -334,18 +334,20 @@ npx vercel --prod --yes
 
 ## Déploiement Base Sepolia — ACTIF ✅
 
-### Adresses des contrats (Base Sepolia — 3ème déploiement, EASChecker avec allowlist/selfRegister)
+### Adresses des contrats (Base Sepolia — 3ème déploiement réel, source: broadcast/Deploy.s.sol/84532/run-latest.json)
 
 | Contrat | Adresse |
 |---|---|
-| MockEURC | `0xB17084217fcd338C60a3e3394a97CB978c803d03` |
-| MockMorpho | `0xA7c49e53573566B3b0143CDe8DCdC05Db316aBd5` |
+| MockEURC | `0x35ba4bd0c7b54a96ba9beea965eeb50c57cc6501` |
+| MockMorpho | `0xedac18110f28fdf3276fb15b7d429721d67c0515` |
 | EASChecker | `0x51210B5837521f1254F88Bcd77D4BBEB2b0254c0` |
-| FBKToken | `0x21447eB0497cE52Cd508B57826d417707Ee47878` |
-| FinBankVault | `0x1719f83defCfEde745fa80c8D16B7cf56f2aD1e4` |
-| VeFBK | `0x99AD12d2A7C5F74775C5b7CB2fEc6e5a869f2FE9` |
-| FBKDistributor | `0x28BE449B18b9eC2ADff49f13acAB048FaD3D2FBD` |
-| FinBankGovernor | `0xe2c80c50e81c3Eb0B0a6150dcCC4066a6aD6dab4` |
+| FBKToken | `0xc6d0dd119aca3cb99c7c20d18fb9aee8bb44548e` |
+| FinBankVault | `0x552138ef55e32b656fe303ccdd5b388dfb7bff9b` |
+| VeFBK | `0x6089374304d838f5aaf1fa16f6919b2a95a2e231` |
+| FBKDistributor | `0xa2823df3f7c9c0735e1ff4f8f4a06dd33b34e0b7` |
+| FinBankGovernor | `0xb183d6aa4e1a21d9b0961119438c1eaf2a5898e0` |
+
+> ⚠️ ATTENTION : les adresses dans les `console.log` de `forge script` sont des adresses de **simulation**, pas les adresses réelles broadcastées. Toujours lire le fichier `broadcast/Deploy.s.sol/84532/run-latest.json` comme source de vérité.
 
 - **Wallet deployer** : `0x8e4A6f0866904D9edB6bb5e2CD56199EAfadEEA6`
 - **RPC** : `https://sepolia.base.org` (public, pas de limite eth_getLogs)
@@ -370,5 +372,43 @@ npm run dev   # indexeur + API sur :3001 (RPC public Base Sepolia)
 
 **Phase actuelle** : Phase 3 ✅ — Frontend déployé en production
 **Dernière mise à jour** : 2026-04-26
-**URL production** : https://frontend-fin-bank.vercel.app
-**Prochaine étape** : Domaine custom + contacts Synaps/Monerium + choix firme d'audit
+**URL production** : https://www.fin-bank.xyz
+**Domaine custom** : fin-bank.xyz ✅ (ancienne URL Vercel redirige)
+
+---
+
+## Décisions stratégiques actées (2026-04-26)
+
+### KYC
+- **Synaps abandonné** (n'existe plus)
+- **Solution retenue : Coinbase Verifications via EAS** — open source, 0 donnée stockée, 100M+ users déjà vérifiés, nativement sur Base
+- `CoinbaseEASChecker.sol` déjà déployé et opérationnel sur Sepolia
+
+### Structure légale
+- Fondateur basé en **Belgique** → structure à créer : **BV** (Besloten Vennootschap / SRL belge)
+- Pas encore créée — à faire avant signature d'accords commerciaux
+- Régulateur belge crypto : **FSMA**
+
+### Partenaires
+- **Monerium** (IBAN non-custodial, pont SEPA ↔ stablecoin euro) : formulaire de contact envoyé le 2026-04-26. En attente de réponse (délai typique 5-7 jours ouvrables)
+  - ⚠️ Monerium émet **EURe** (pas EURC) — décision d'architecture à prendre : accepter EURe dans le Vault, ou swap auto EURe → EURC via DEX
+- **Audit externe** : à sélectionner (Code4rena pour commencer, Spearbit si budget dispo)
+
+---
+
+## Prochaines étapes (ordre de priorité)
+
+### Court terme (maintenant → 4 semaines)
+1. **Attendre réponse Monerium** — relancer par email direct si rien sous 7 jours ouvrables
+2. **Créer la BV belge** — notaire requis, compter 2-4 semaines et ~1500€
+3. **Sélectionner firme d'audit** — Code4rena (compétitif, public) ou Spearbit (privé)
+4. **10 beta users** — freelances du réseau perso, tests sur Sepolia avec faux euros
+
+### Moyen terme (1-3 mois)
+5. **Intégration Monerium** — selon leur réponse, adapter le Vault (EURe ou swap)
+6. **Audit externe** — lancer le processus
+7. **Décision EURe vs EURC** — après discussion Monerium
+
+### Long terme (post-audit)
+8. **Mainnet Base** — cap TVL initial, whitelist fermée
+9. **Enregistrement FSMA** (PSAV) — avec la BV belge créée
