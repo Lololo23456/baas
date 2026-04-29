@@ -8,6 +8,7 @@ import { config } from '@/lib/wagmi'
 import {
   CONTRACTS, VAULT_ABI, ERC20_ABI, DISTRIBUTOR_ABI, EAS_CHECKER_ABI, BASESCAN_URL,
 } from '@/lib/contracts'
+import MoneriumConnect from './MoneriumConnect'
 
 /* ═══════════════════════════════════════════════════════════════
    FinBank — Coffre Souverain
@@ -528,6 +529,12 @@ export default function AccountView() {
         >
           ↑ &nbsp; ENVOYER
         </button>
+      </div>
+
+      {/* ── Monerium IBAN ──────────────────────────────── */}
+      <div style={{ marginBottom: 48 }}>
+        <p className="b-label" style={{ marginBottom: 16 }}>VIREMENT BANCAIRE</p>
+        <MoneriumConnect />
       </div>
 
       {/* ── Activity feed ──────────────────────────────── */}
