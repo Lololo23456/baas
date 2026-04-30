@@ -38,7 +38,12 @@ function MoneriumCallback() {
         if (data.error) throw new Error(data.error)
         sessionStorage.setItem('monerium_profile', JSON.stringify(data.profile))
         sessionStorage.removeItem('monerium_state')
-        router.replace('/app')
+        // Si on est dans une popup, se fermer — la fenêtre parente détecte la fermeture
+        if (window.opener) {
+          window.close()
+        } else {
+          router.replace('/app')
+        }
       })
       .catch(err => {
         setError(err.message ?? 'Connexion Monerium échouée.')

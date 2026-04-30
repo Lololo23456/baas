@@ -85,8 +85,35 @@ export default function MoneriumConnect() {
         network:       MONERIUM_NETWORK,
       })
 
-      // 4. Rediriger vers Monerium
-      window.location.href = `${MONERIUM_BASE_URL}/auth?${params.toString()}`
+      // 4. Ouvrir dans une popup — l'utilisateur reste sur FinBank
+      const w = 520, h = 680
+      const left = window.screenX + (window.outerWidth  - w) / 2
+      const top  = window.screenY + (window.outerHeight - h) / 2
+      const popup = window.open(
+        `${MONERIUM_BASE_URL}/auth?${params.toString()}`,
+        'monerium_oauth',
+        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+      )
+
+      if (!popup) {
+        // Popup bloquée par le navigateur — fallback redirect classique
+        window.location.href = `${MONERIUM_BASE_URL}/auth?${params.toString()}`
+        return
+      }
+
+      // 5. Surveiller la fermeture de la popup
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer)
+          const p = getStoredProfile()
+          if (p) {
+            setProfile(p)
+          } else {
+            setError('Connexion annulée ou échouée. Réessaie.')
+          }
+          setSigning(false)
+        }
+      }, 400)
     } catch (err) {
       if (err instanceof Error && (err.message.includes('rejected') || err.message.includes('4001'))) {
         // Annulé par l'utilisateur
