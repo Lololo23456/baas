@@ -86,6 +86,7 @@ export default function AccountView() {
   const [modal,         setModal]         = useState<ActionModal>(null)
   const [showSettings,  setShowSettings]  = useState(false)
 
+  const [receiveTab,    setReceiveTab]    = useState<'wallet' | 'sepa'>('wallet')
   const [depositAmount, setDepositAmount] = useState('')
   const [depositStep,   setDepositStep]   = useState<DepositStep>('idle')
   const [depositError,  setDepositError]  = useState<string | null>(null)
@@ -272,6 +273,7 @@ export default function AccountView() {
   const openModal = (m: ActionModal) => {
     setModal(m)
     if (m === 'recevoir') {
+      setReceiveTab('wallet')
       setDepositAmount(''); setDepositStep('idle'); setDepositError(null)
     } else if (m === 'envoyer') {
       setWithdrawAmount(''); setWithdrawStep('idle'); setWithdrawError(null)
@@ -531,12 +533,6 @@ export default function AccountView() {
         </button>
       </div>
 
-      {/* ── Monerium IBAN ──────────────────────────────── */}
-      <div style={{ marginBottom: 48 }}>
-        <p className="b-label" style={{ marginBottom: 16 }}>VIREMENT BANCAIRE</p>
-        <MoneriumConnect />
-      </div>
-
       {/* ── Activity feed ──────────────────────────────── */}
       <div style={{ marginBottom: 48 }}>
         <div style={{
@@ -624,12 +620,39 @@ export default function AccountView() {
       {/* MODAL — RECEVOIR (deposit)                              */}
       {/* ═══════════════════════════════════════════════════════ */}
       {modal === 'recevoir' && (
-        <DarkModal title="RECEVOIR DANS LE COFFRE" onClose={closeModal}>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 24, lineHeight: 1.6 }}>
-            Le montant sera placé dans la réserve commune et générera un rendement automatique.
-            Tu peux le retirer à tout moment.
-          </p>
+        <DarkModal title="Recevoir" onClose={closeModal}>
 
+          {/* Onglets */}
+          <div style={{
+            display: 'flex', gap: 4,
+            background: '#F1F5F9', borderRadius: 10, padding: 4,
+            marginBottom: 24,
+          }}>
+            {([['wallet', '↓  Depuis mon wallet'], ['sepa', '🏦  Virement SEPA']] as const).map(([tab, label]) => (
+              <button
+                key={tab}
+                onClick={() => setReceiveTab(tab)}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  background: receiveTab === tab ? '#FFFFFF' : 'transparent',
+                  color: receiveTab === tab ? '#0F172A' : '#64748B',
+                  boxShadow: receiveTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Contenu onglet SEPA */}
+          {receiveTab === 'sepa' && (
+            <MoneriumConnect />
+          )}
+
+          {/* Contenu onglet wallet */}
+          {receiveTab === 'wallet' && <>
           <p className="b-label" style={{ marginBottom: 8 }}>MONTANT</p>
           <div style={{ position: 'relative', marginBottom: 8 }}>
             <span style={{
@@ -698,6 +721,7 @@ export default function AccountView() {
                 : '2 SIGNATURES · AUTORISATION + TRANSFERT'}
             </p>
           )}
+          </>}
         </DarkModal>
       )}
 
