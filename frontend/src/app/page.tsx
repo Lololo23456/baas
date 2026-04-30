@@ -34,9 +34,9 @@ export default function Home() {
                 marginBottom: 28,
                 maxWidth: 540,
               }}>
-                Your bank can close<br />
-                your account tomorrow.<br />
-                <span style={{ color: '#94A3B8' }}>FinBank cannot.</span>
+                More control over<br />
+                your money than<br />
+                <span style={{ color: '#94A3B8' }}>any bank offers.</span>
               </h1>
 
               <p className="animate-fade-up delay-2" style={{
@@ -46,9 +46,9 @@ export default function Home() {
                 marginBottom: 40,
                 maxWidth: 480,
               }}>
-                The first financial institution built on three unbreakable
-                principles: total transparency, collective ownership, and a
-                foundation that no one can alter — not even us.
+                A non-custodial savings interface for freelancers. Your funds
+                go directly into an on-chain vault — transparent, auditable,
+                and governed by code rather than by our decisions.
               </p>
 
               <div className="animate-fade-up delay-3" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -69,9 +69,9 @@ export default function Home() {
                 borderTop: '1px solid #E2E8F0',
               }}>
                 {[
-                  { value: '6', label: 'Auditable contracts' },
-                  { value: '169', label: 'Automated tests' },
-                  { value: '0', label: 'Failures' },
+                  { value: '6', label: 'Smart contracts' },
+                  { value: '181', label: 'Automated tests' },
+                  { value: '0%', label: 'Custody of funds' },
                 ].map(({ value, label }) => (
                   <div key={label}>
                     <p style={{ fontSize: 28, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.03em', lineHeight: 1 }}>
@@ -101,7 +101,7 @@ export default function Home() {
               Three principles
             </p>
             <h2 className="display" style={{ fontSize: 'clamp(28px, 3vw, 40px)', color: '#0F172A' }}>
-              Banking rebuilt from<br />first principles
+              What makes it<br />different
             </h2>
           </div>
 
@@ -125,15 +125,15 @@ export default function Home() {
                 I
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>
-                Total Transparency
+                On-chain transparency
               </h3>
               <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, marginBottom: 24 }}>
-                Every euro deposited, every fraction of yield, every rule is
-                recorded on a public blockchain — verifiable by anyone, in
-                real time.
+                Every deposit, every yield fraction, every fee is recorded on
+                a public blockchain — verifiable by anyone, in real time.
+                Not a quarterly report.
               </p>
               <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
-                Not an annual report. Reality, readable in code.
+                Open the contract on Basescan and read the rules yourself.
               </p>
             </div>
 
@@ -186,14 +186,15 @@ export default function Home() {
                 III
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, letterSpacing: '-0.02em' }}>
-                Unbreakable Foundations
+                Non-custodial by design
               </h3>
               <p style={{ fontSize: 14, color: '#94A3B8', lineHeight: 1.7, marginBottom: 24 }}>
-                Withdrawals are technically impossible to block — written in
-                immutable code. Trust is in the protocol, not in people.
+                We never hold your funds. Withdrawals are governed by smart
+                contract code — not by our approval. No one at FinBank can
+                freeze your balance.
               </p>
               <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
-                Same principles as cooperatives. Better tools.
+                Residual risks: Morpho Blue, EURC issuer, underlying chain.
               </p>
             </div>
 
@@ -224,13 +225,13 @@ export default function Home() {
               },
               {
                 step: '02',
-                title: 'Deposit via IBAN',
-                desc: 'Wire from your existing bank to your personal IBAN. EUR is instantly converted to EURC on-chain.',
+                title: 'Receive a personal IBAN',
+                desc: 'Connect Monerium to get a SEPA IBAN. Wire EUR from any bank — it arrives as EURe in your wallet within 1 business day.',
               },
               {
                 step: '03',
-                title: 'Your money works',
-                desc: 'Your funds generate yield through audited DeFi protocols. Withdraw anytime. Nothing is locked.',
+                title: 'Earn yield automatically',
+                desc: 'Your funds are placed in Morpho Blue, a DeFi lending protocol. Yield is variable and market-driven. Withdraw anytime.',
               },
             ].map(({ step, title, desc }) => (
               <div key={step} className="card" style={{ padding: '36px 32px' }}>
@@ -262,7 +263,7 @@ export default function Home() {
               Comparison
             </p>
             <h2 className="display" style={{ fontSize: 'clamp(28px, 3vw, 40px)', color: '#0F172A' }}>
-              Not a better bank.<br />A different institution.
+              How FinBank compares<br />to your current options.
             </h2>
           </div>
 
@@ -294,11 +295,11 @@ export default function Home() {
               </thead>
               <tbody>
                 {[
-                  ['Account closure risk', 'High', 'Medium', 'None — code cannot close'],
-                  ['Transaction speed', '1–3 days', 'Near-instant', 'Instant (blockchain)'],
-                  ['Governance', 'Opaque', 'Opaque', 'Transparent, on-chain'],
-                  ['Ownership', 'Shareholders', 'Shareholders', 'Member users ($FBK)'],
-                  ['Rules modifiable by management', 'Yes', 'Yes', 'No — DAO vote required'],
+                  ['Account closure by provider', 'Possible', 'Possible', 'Not by FinBank¹'],
+                  ['Yield on deposits', '~0%', '0–3%', 'Variable (Morpho Blue)'],
+                  ['Custody of funds', 'Bank holds', 'Provider holds', 'You hold'],
+                  ['Governance', 'Opaque', 'Opaque', 'On-chain, auditable'],
+                  ['Rule changes', 'Unilateral', 'Unilateral', 'DAO vote required'],
                   ['Audit', 'Annual report', 'Annual report', 'Real-time, public'],
                 ].map(([criteria, trad, neo, fb], i) => (
                   <tr
@@ -325,6 +326,53 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Risks & Disclaimers ─────────────────────────────── */}
+      <section style={{ background: '#FFFFFF', padding: '80px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ marginBottom: 40 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+              Risks & Disclaimers
+            </p>
+            <h2 className="display" style={{ fontSize: 'clamp(24px, 2.5vw, 34px)', color: '#0F172A' }}>
+              Be informed before you deposit.
+            </h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+            {[
+              {
+                title: 'Smart contract risk',
+                desc: 'FinBank\'s contracts have not yet been audited by a third party. A bug could result in loss of funds. An audit is planned before mainnet launch.',
+              },
+              {
+                title: 'Variable yield',
+                desc: 'Yield is determined by Morpho Blue\'s lending market rates. It fluctuates with supply and demand. Past rates do not guarantee future returns.',
+              },
+              {
+                title: 'Third-party dependencies',
+                desc: 'The fiat bridge relies on Monerium (regulated). The stablecoin relies on Circle (EURC). Issues with either provider would affect your ability to move fiat.',
+              },
+              {
+                title: 'Regulatory uncertainty',
+                desc: 'DeFi regulation in Europe (MiCA, PSD2) is evolving. FinBank is a non-custodial software interface — not a bank, not a payment institution.',
+              },
+            ].map(({ title, desc }) => (
+              <div key={title} style={{
+                padding: '24px 28px',
+                border: '1px solid #E2E8F0',
+                borderRadius: 12,
+                borderLeft: '3px solid #F59E0B',
+              }}>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', marginBottom: 8 }}>{title}</p>
+                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 24, lineHeight: 1.7 }}>
+            ¹ FinBank cannot close your account or freeze withdrawals. However, Morpho Blue (the underlying protocol) has a guardian mechanism that could pause deposits in an emergency. Your funds would remain withdrawable. This is not financial advice.
+          </p>
+        </div>
+      </section>
+
       {/* ── CTA ─────────────────────────────────────────────── */}
       <section style={{ background: '#0F172A', padding: '96px 24px' }}>
         <div style={{
@@ -337,11 +385,11 @@ export default function Home() {
             color: '#FFFFFF',
             marginBottom: 20,
           }}>
-            The code is live.<br />Verify it yourself.
+            Try it on testnet.<br />No real money.
           </h2>
           <p style={{ fontSize: 16, color: '#64748B', lineHeight: 1.7, marginBottom: 40 }}>
-            Every rule, every balance, every constraint is on a public
-            blockchain. Open the app, or read the contracts directly on Basescan.
+            FinBank runs on Base Sepolia — a test network. Use it to explore
+            the interface with fake funds. Mainnet launches after the security audit.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/app" className="btn btn-dark" style={{
@@ -390,8 +438,9 @@ export default function Home() {
             </div>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>FinBank</span>
           </div>
-          <p style={{ fontSize: 12, color: '#334155' }}>
-            Testnet — Base Sepolia · Not financial advice
+          <p style={{ fontSize: 12, color: '#334155', maxWidth: 400, lineHeight: 1.6 }}>
+            FinBank is a non-custodial software interface. We never hold your funds.
+            Testnet only · Not financial advice · Audit pending
           </p>
           <div style={{ display: 'flex', gap: 20 }}>
             {[
