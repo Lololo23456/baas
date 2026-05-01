@@ -5,7 +5,7 @@ import { useSignMessage } from 'wagmi'
 import {
   MoneriumSession, MoneriumAccount,
   getSession, clearSession,
-  saveOAuthState,
+  saveOAuthState, generatePKCE, savePKCEVerifier,
   MONERIUM_BASE_URL, MONERIUM_CLIENT_ID,
   MONERIUM_CHAIN, MONERIUM_NETWORK, AUTH_MESSAGE,
 } from '@/lib/monerium'
@@ -56,22 +56,26 @@ export function useMoneriumOAuth(): MoneriumOAuthHook {
       // 1. Signer le message pour lier le wallet au compte Monerium
       const signature = await signMessageAsync({ message: AUTH_MESSAGE })
 
-      // 2. Générer un state CSRF
+      // 2. Générer state CSRF + PKCE (pas de client_secret chez Monerium)
       const state = crypto.randomUUID()
       saveOAuthState(state)
+      const { verifier, challenge } = await generatePKCE()
+      savePKCEVerifier(verifier)
 
       // 3. Construire l'URL OAuth Monerium
       const redirectUri = `${window.location.origin}/callback/monerium`
       const params = new URLSearchParams({
-        client_id:     MONERIUM_CLIENT_ID,
-        redirect_uri:  redirectUri,
-        response_type: 'code',
-        scope:         'openid',
+        client_id:             MONERIUM_CLIENT_ID,
+        redirect_uri:          redirectUri,
+        response_type:         'code',
+        scope:                 'openid',
         state,
         address,
         signature,
-        chain:         MONERIUM_CHAIN,
-        network:       MONERIUM_NETWORK,
+        chain:                 MONERIUM_CHAIN,
+        network:               MONERIUM_NETWORK,
+        code_challenge:        challenge,
+        code_challenge_method: 'S256',
       })
 
       // 4. Ouvrir en popup — l'utilisateur reste sur FinBank
