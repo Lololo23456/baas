@@ -17,7 +17,6 @@ import MoneriumSend    from './MoneriumSend'
 
 type ActionModal  = 'recevoir' | 'envoyer' | null
 type DepositStep  = 'idle' | 'approving' | 'depositing' | 'success' | 'error'
-type WithdrawStep = 'idle' | 'withdrawing' | 'success' | 'error'
 type SendTab      = 'finbank' | 'sepa'
 type TransferStep = 'idle' | 'sending' | 'success' | 'error'
 
@@ -93,10 +92,6 @@ export default function AccountView() {
   const [depositAmount, setDepositAmount] = useState('')
   const [depositStep,   setDepositStep]   = useState<DepositStep>('idle')
   const [depositError,  setDepositError]  = useState<string | null>(null)
-
-  const [withdrawAmount, setWithdrawAmount] = useState('')
-  const [withdrawStep,   setWithdrawStep]   = useState<WithdrawStep>('idle')
-  const [withdrawError,  setWithdrawError]  = useState<string | null>(null)
 
   const [sendTab,       setSendTab]       = useState<SendTab>('finbank')
   const [transferTo,    setTransferTo]    = useState('')
@@ -277,7 +272,7 @@ export default function AccountView() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modal, showSettings, depositStep, withdrawStep])
+  }, [modal, showSettings, depositStep, transferStep])
 
   const openModal = (m: ActionModal) => {
     setModal(m)
@@ -287,15 +282,13 @@ export default function AccountView() {
     } else if (m === 'envoyer') {
       setSendTab('finbank')
       setTransferTo(''); setTransferAmount(''); setTransferStep('idle'); setTransferError(null)
-      setWithdrawAmount(''); setWithdrawStep('idle'); setWithdrawError(null)
     }
   }
 
   const closeModal = () => {
     if (depositStep === 'approving' || depositStep === 'depositing') return
-    if (withdrawStep === 'withdrawing') return
     if (transferStep === 'sending') return
-    setModal(null); setDepositStep('idle'); setWithdrawStep('idle'); setTransferStep('idle')
+    setModal(null); setDepositStep('idle'); setTransferStep('idle')
   }
 
   /* ── Handlers ──────────────────────────────────────── */
@@ -327,31 +320,6 @@ export default function AccountView() {
       refetchAfterTx()
     } catch (err) {
       setDepositError(extractError(err)); setDepositStep('error')
-    }
-  }
-
-  const handleWithdraw = async () => {
-    if (!address || !withdrawAmount) return
-    const amount = safeParseUnits(withdrawAmount, 6)
-    if (!amount) { setWithdrawError('Montant invalide.'); return }
-    if (maxWithdrawable !== undefined && amount > maxWithdrawable) {
-      setWithdrawError('Montant supérieur à ton solde.'); return
-    }
-    setWithdrawError(null); setWithdrawStep('withdrawing')
-    try {
-      const shares = await readContract(config, {
-        address: CONTRACTS.VAULT, abi: VAULT_ABI,
-        functionName: 'convertToShares', args: [amount],
-      })
-      const hash = await writeContractAsync({
-        address: CONTRACTS.VAULT, abi: VAULT_ABI,
-        functionName: 'redeem', args: [shares, address, address],
-      })
-      await waitForTransactionReceipt(config, { hash })
-      setWithdrawStep('success')
-      refetchAfterTx()
-    } catch (err) {
-      setWithdrawError(extractError(err)); setWithdrawStep('error')
     }
   }
 
