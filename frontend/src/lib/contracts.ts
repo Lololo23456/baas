@@ -70,6 +70,16 @@ export const VAULT_ABI = [
     ],
     outputs: [{ name: 'assets', type: 'uint256' }],
   },
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to',     type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: 'success', type: 'bool' }],
+  },
   // Events for tx history — names must match exactly what the contract emits
   {
     name: 'Deposit',
