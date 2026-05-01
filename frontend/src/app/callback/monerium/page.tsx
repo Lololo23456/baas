@@ -6,7 +6,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { saveSession, popOAuthState } from '@/lib/monerium'
+import { saveSession, popOAuthState, popPKCEVerifier } from '@/lib/monerium'
 
 function MoneriumCallback() {
   const router       = useRouter()
@@ -29,12 +29,13 @@ function MoneriumCallback() {
       return
     }
 
-    const redirectUri = `${window.location.origin}/callback/monerium`
+    const codeVerifier = popPKCEVerifier()
+    const redirectUri  = `${window.location.origin}/callback/monerium`
 
     fetch('/api/monerium/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirectUri }),
+      body: JSON.stringify({ code, redirectUri, codeVerifier }),
     })
       .then(r => r.json())
       .then(data => {

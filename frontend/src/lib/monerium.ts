@@ -50,6 +50,35 @@ export function popOAuthState(): string | null {
   return state
 }
 
+// PKCE — Proof Key for Code Exchange (Monerium n'utilise pas de client_secret)
+const VERIFIER_KEY = 'monerium_pkce_verifier'
+
+function base64url(buffer: Uint8Array): string {
+  return btoa(String.fromCharCode(...buffer))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+export async function generatePKCE(): Promise<{ verifier: string; challenge: string }> {
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  const verifier = base64url(array)
+
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+  const challenge = base64url(new Uint8Array(digest))
+
+  return { verifier, challenge }
+}
+
+export function savePKCEVerifier(verifier: string): void {
+  sessionStorage.setItem(VERIFIER_KEY, verifier)
+}
+
+export function popPKCEVerifier(): string | null {
+  const v = sessionStorage.getItem(VERIFIER_KEY)
+  sessionStorage.removeItem(VERIFIER_KEY)
+  return v
+}
+
 // Constantes env (public)
 export const MONERIUM_BASE_URL = process.env.NEXT_PUBLIC_MONERIUM_BASE_URL ?? 'https://api.monerium.dev'
 export const MONERIUM_CLIENT_ID = process.env.NEXT_PUBLIC_MONERIUM_CLIENT_ID ?? ''
