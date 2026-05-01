@@ -1,6 +1,7 @@
 // POST /api/monerium/token
-// Exchanges the OAuth authorization code for an access token.
-// The client_secret never leaves the server.
+// Échange le code OAuth contre un access_token.
+// Le client_secret ne quitte jamais le serveur.
+// Retourne profile + access_token (nécessaire pour créer des ordres côté client).
 
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -21,15 +22,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
     }
 
-    // 1. Exchange code for access token
+    // 1. Échanger le code contre un access_token
     const tokenRes = await fetch(`${MONERIUM_API}/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        grant_type:   'authorization_code',
+        grant_type:    'authorization_code',
         code,
-        redirect_uri: redirectUri,
-        client_id:    clientId,
+        redirect_uri:  redirectUri,
+        client_id:     clientId,
         client_secret: clientSecret,
       }),
     })
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     const { access_token } = await tokenRes.json()
 
-    // 2. Fetch the user profile (IBAN + accounts)
+    // 2. Récupérer le profil (IBAN + comptes)
     const profileRes = await fetch(`${MONERIUM_API}/api/profile`, {
       headers: { Authorization: `Bearer ${access_token}` },
     })
@@ -53,8 +54,8 @@ export async function POST(req: NextRequest) {
 
     const profile = await profileRes.json()
 
-    // Return profile data — token stays server-side (not needed by the client)
-    return NextResponse.json({ profile })
+    // Retourner profile ET access_token — le client en a besoin pour créer des ordres SEPA
+    return NextResponse.json({ profile, access_token })
   } catch (err) {
     console.error('[monerium/token]', err)
     return NextResponse.json({ error: 'Request failed' }, { status: 500 })
