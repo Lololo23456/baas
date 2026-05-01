@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSignMessage } from 'wagmi'
 import {
   MoneriumSession, MoneriumAccount,
-  getSession, saveSession, clearSession,
+  getSession, clearSession,
   saveOAuthState,
   MONERIUM_BASE_URL, MONERIUM_CLIENT_ID,
   MONERIUM_CHAIN, MONERIUM_NETWORK, AUTH_MESSAGE,
