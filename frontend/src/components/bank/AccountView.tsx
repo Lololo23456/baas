@@ -9,14 +9,17 @@ import {
   CONTRACTS, VAULT_ABI, ERC20_ABI, DISTRIBUTOR_ABI, EAS_CHECKER_ABI, BASESCAN_URL,
 } from '@/lib/contracts'
 import MoneriumConnect from './MoneriumConnect'
+import MoneriumSend    from './MoneriumSend'
 
 /* ═══════════════════════════════════════════════════════════════
    FinBank — Coffre Souverain
    ═══════════════════════════════════════════════════════════════ */
 
-type ActionModal = 'recevoir' | 'envoyer' | null
-type DepositStep = 'idle' | 'approving' | 'depositing' | 'success' | 'error'
-type WithdrawStep= 'idle' | 'withdrawing' | 'success' | 'error'
+type ActionModal  = 'recevoir' | 'envoyer' | null
+type DepositStep  = 'idle' | 'approving' | 'depositing' | 'success' | 'error'
+type WithdrawStep = 'idle' | 'withdrawing' | 'success' | 'error'
+type SendTab      = 'finbank' | 'sepa'
+type TransferStep = 'idle' | 'sending' | 'success' | 'error'
 
 type TxItem = {
   type:   'in' | 'out'
@@ -94,6 +97,12 @@ export default function AccountView() {
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [withdrawStep,   setWithdrawStep]   = useState<WithdrawStep>('idle')
   const [withdrawError,  setWithdrawError]  = useState<string | null>(null)
+
+  const [sendTab,       setSendTab]       = useState<SendTab>('finbank')
+  const [transferTo,    setTransferTo]    = useState('')
+  const [transferAmount,setTransferAmount]= useState('')
+  const [transferStep,  setTransferStep]  = useState<TransferStep>('idle')
+  const [transferError, setTransferError] = useState<string | null>(null)
 
   const [claiming, setClaiming]     = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
@@ -276,6 +285,8 @@ export default function AccountView() {
       setReceiveTab('wallet')
       setDepositAmount(''); setDepositStep('idle'); setDepositError(null)
     } else if (m === 'envoyer') {
+      setSendTab('finbank')
+      setTransferTo(''); setTransferAmount(''); setTransferStep('idle'); setTransferError(null)
       setWithdrawAmount(''); setWithdrawStep('idle'); setWithdrawError(null)
     }
   }
@@ -283,7 +294,8 @@ export default function AccountView() {
   const closeModal = () => {
     if (depositStep === 'approving' || depositStep === 'depositing') return
     if (withdrawStep === 'withdrawing') return
-    setModal(null); setDepositStep('idle'); setWithdrawStep('idle')
+    if (transferStep === 'sending') return
+    setModal(null); setDepositStep('idle'); setWithdrawStep('idle'); setTransferStep('idle')
   }
 
   /* ── Handlers ──────────────────────────────────────── */
@@ -340,6 +352,42 @@ export default function AccountView() {
       refetchAfterTx()
     } catch (err) {
       setWithdrawError(extractError(err)); setWithdrawStep('error')
+    }
+  }
+
+  const handleTransfer = async () => {
+    if (!address || !transferTo || !transferAmount) return
+    // Valider l'adresse destinataire (0x + 40 hex chars)
+    if (!/^0x[0-9a-fA-F]{40}$/.test(transferTo)) {
+      setTransferError('Adresse invalide (format 0x…).')
+      return
+    }
+    if (transferTo.toLowerCase() === address.toLowerCase()) {
+      setTransferError('Tu ne peux pas t\'envoyer à toi-même.')
+      return
+    }
+    const amount = safeParseUnits(transferAmount, 6)
+    if (!amount) { setTransferError('Montant invalide.'); return }
+    if (maxWithdrawable !== undefined && amount > maxWithdrawable) {
+      setTransferError('Montant supérieur à ton solde.'); return
+    }
+    setTransferError(null); setTransferStep('sending')
+    try {
+      // Convertir le montant EUR en shares, puis transférer les shares
+      const shares = await readContract(config, {
+        address: CONTRACTS.VAULT, abi: VAULT_ABI,
+        functionName: 'convertToShares', args: [amount],
+      })
+      const hash = await writeContractAsync({
+        address: CONTRACTS.VAULT, abi: VAULT_ABI,
+        functionName: 'transfer',
+        args: [transferTo as `0x${string}`, shares],
+      })
+      await waitForTransactionReceipt(config, { hash })
+      setTransferStep('success')
+      refetchAfterTx()
+    } catch (err) {
+      setTransferError(extractError(err)); setTransferStep('error')
     }
   }
 
@@ -726,79 +774,148 @@ export default function AccountView() {
       )}
 
       {/* ═══════════════════════════════════════════════════════ */}
-      {/* MODAL — ENVOYER (withdraw)                              */}
+      {/* MODAL — ENVOYER (2 onglets : FinBank + SEPA)            */}
       {/* ═══════════════════════════════════════════════════════ */}
       {modal === 'envoyer' && (
-        <DarkModal title="ENVOYER DEPUIS LE COFFRE" onClose={closeModal}>
+        <DarkModal title="Envoyer" onClose={closeModal}>
+
+          {/* Onglets */}
           <div style={{
-            border: '1px solid var(--line)', borderRadius: 2,
-            padding: '12px 16px', marginBottom: 24,
-            display: 'flex', gap: 10, alignItems: 'flex-start',
+            display: 'flex', gap: 4,
+            background: '#F1F5F9', borderRadius: 10, padding: 4,
+            marginBottom: 24,
           }}>
-            <span style={{ fontSize: 12, color: 'var(--success)', marginTop: 2 }}>◆</span>
-            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
-              Aucune entité — y compris FinBank — ne peut bloquer ce retrait.
-            </p>
-          </div>
-
-          <p className="b-label" style={{ marginBottom: 8 }}>MONTANT À ENVOYER</p>
-          <div style={{ position: 'relative', marginBottom: 8 }}>
-            <span style={{
-              position: 'absolute', left: 18, top: '50%',
-              transform: 'translateY(-50%)', fontSize: 16, color: 'var(--text-3)',
-              pointerEvents: 'none',
-            }}>€</span>
-            <input
-              className="b-input"
-              autoFocus
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              value={withdrawAmount}
-              onChange={e => {
-                setWithdrawAmount(e.target.value)
-                if (withdrawStep === 'error') setWithdrawStep('idle')
-                setWithdrawError(null)
-              }}
-              disabled={withdrawStep === 'withdrawing'}
-              style={{ paddingLeft: 36 }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-            <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
-              Maximum · €&nbsp;{maxOutEur}
-            </p>
-            {maxWithdrawable !== undefined && maxWithdrawable > 0n && (
+            {([
+              ['finbank', '↑  Compte FinBank'],
+              ['sepa',    '🏦  Virement SEPA'],
+            ] as const).map(([tab, label]) => (
               <button
-                onClick={() => setWithdrawAmount(formatUnits(maxWithdrawable, 6))}
-                className="b-btn-ghost"
-                style={{ fontSize: 11 }}
+                key={tab}
+                onClick={() => { setSendTab(tab); setTransferError(null); setTransferStep('idle') }}
+                style={{
+                  flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  background: sendTab === tab ? '#FFFFFF' : 'transparent',
+                  color: sendTab === tab ? '#0F172A' : '#64748B',
+                  boxShadow: sendTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.15s',
+                }}
               >
-                MAX
+                {label}
               </button>
-            )}
+            ))}
           </div>
 
-          {withdrawError && (
-            <p role="alert" style={{
-              fontSize: 12, color: 'var(--danger)',
-              marginBottom: 16, padding: '10px 14px',
-              background: 'rgba(229, 72, 77, 0.08)', borderRadius: 2,
-            }}>
-              {withdrawError}
-            </p>
+          {/* ── Onglet FinBank → FinBank ─────────────────────── */}
+          {sendTab === 'finbank' && (
+            <>
+              {/* Bannière souveraineté */}
+              <div style={{
+                border: '1px solid var(--line)', borderRadius: 2,
+                padding: '12px 16px', marginBottom: 20,
+                display: 'flex', gap: 10, alignItems: 'flex-start',
+              }}>
+                <span style={{ fontSize: 12, color: 'var(--success)', marginTop: 2 }}>◆</span>
+                <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                  Transfert instantané de parts du coffre. Les deux parties doivent être membres FinBank.
+                </p>
+              </div>
+
+              {transferStep === 'success' ? (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <p style={{ fontSize: 24, marginBottom: 8 }}>✓</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', marginBottom: 4 }}>Transfert effectué</p>
+                  <p style={{ fontSize: 13, color: '#64748B' }}>
+                    €&nbsp;{transferAmount} transféré vers {transferTo.slice(0, 6)}···{transferTo.slice(-4)}
+                  </p>
+                  <button onClick={closeModal} className="b-btn" style={{ marginTop: 20, fontSize: 12 }}>
+                    FERMER
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="b-label" style={{ marginBottom: 6 }}>ADRESSE DESTINATAIRE</p>
+                  <input
+                    className="b-input"
+                    autoFocus
+                    placeholder="0x…"
+                    value={transferTo}
+                    onChange={e => {
+                      setTransferTo(e.target.value)
+                      if (transferStep === 'error') setTransferStep('idle')
+                      setTransferError(null)
+                    }}
+                    disabled={transferStep === 'sending'}
+                    style={{ marginBottom: 12, fontFamily: 'monospace', fontSize: 13 }}
+                  />
+
+                  <p className="b-label" style={{ marginBottom: 6 }}>MONTANT</p>
+                  <div style={{ position: 'relative', marginBottom: 8 }}>
+                    <span style={{
+                      position: 'absolute', left: 18, top: '50%',
+                      transform: 'translateY(-50%)', fontSize: 16, color: 'var(--text-3)',
+                      pointerEvents: 'none',
+                    }}>€</span>
+                    <input
+                      className="b-input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={transferAmount}
+                      onChange={e => {
+                        setTransferAmount(e.target.value)
+                        if (transferStep === 'error') setTransferStep('idle')
+                        setTransferError(null)
+                      }}
+                      disabled={transferStep === 'sending'}
+                      style={{ paddingLeft: 36 }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                      Maximum · €&nbsp;{maxOutEur}
+                    </p>
+                    {maxWithdrawable !== undefined && maxWithdrawable > 0n && (
+                      <button
+                        onClick={() => setTransferAmount(formatUnits(maxWithdrawable, 6))}
+                        className="b-btn-ghost"
+                        style={{ fontSize: 11 }}
+                      >
+                        MAX
+                      </button>
+                    )}
+                  </div>
+
+                  {transferError && (
+                    <p role="alert" style={{
+                      fontSize: 12, color: 'var(--danger)',
+                      marginBottom: 16, padding: '10px 14px',
+                      background: 'rgba(229, 72, 77, 0.08)', borderRadius: 2,
+                    }}>
+                      {transferError}
+                    </p>
+                  )}
+
+                  <button
+                    onClick={handleTransfer}
+                    disabled={!transferTo || !transferAmount || transferStep === 'sending'}
+                    className="b-btn"
+                    style={{ width: '100%' }}
+                  >
+                    {transferStep === 'sending' ? 'TRANSFERT EN COURS…' : 'ENVOYER'}
+                  </button>
+                </>
+              )}
+            </>
           )}
 
-          <button
-            onClick={withdrawStep === 'success' ? closeModal : handleWithdraw}
-            disabled={!withdrawAmount || withdrawStep === 'withdrawing'}
-            className="b-btn"
-            style={{ width: '100%' }}
-          >
-            {withdrawStep === 'withdrawing' ? 'TRANSFERT EN COURS…'
-              : withdrawStep === 'success' ? 'TERMINÉ ✓' : 'ENVOYER'}
-          </button>
+          {/* ── Onglet Virement SEPA ─────────────────────────── */}
+          {sendTab === 'sepa' && (
+            <MoneriumSend
+              maxAmount={maxWithdrawable !== undefined ? formatUnits(maxWithdrawable, 6) : undefined}
+            />
+          )}
         </DarkModal>
       )}
 
