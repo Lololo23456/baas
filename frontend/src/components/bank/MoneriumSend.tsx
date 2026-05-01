@@ -180,12 +180,40 @@ export default function MoneriumSend({ maxAmount }: Props) {
   if (!clientConfigured) {
     return (
       <div style={{
-        padding: '16px 20px', borderRadius: 10,
-        background: '#FFF7ED', border: '1px solid #FED7AA',
+        border: '1px solid #E2E8F0', borderRadius: 12,
+        padding: '28px 24px', textAlign: 'center',
       }}>
-        <p style={{ fontSize: 12, color: '#92400E' }}>
-          Intégration Monerium non configurée — ajoute <code>NEXT_PUBLIC_MONERIUM_CLIENT_ID</code> dans les variables d&apos;environnement.
+        <p style={{ fontSize: 28, marginBottom: 12 }}>🏦</p>
+        <p style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', marginBottom: 8 }}>
+          Virement SEPA — bientôt disponible
         </p>
+        <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.7, marginBottom: 20 }}>
+          L&apos;intégration Monerium est en cours de configuration.
+          Crée un compte sur{' '}
+          <a href="https://monerium.dev" target="_blank" rel="noopener noreferrer"
+            style={{ color: '#0F172A', textDecoration: 'underline' }}>
+            monerium.dev
+          </a>{' '}
+          pour obtenir un <code style={{ fontSize: 12, background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>client_id</code>,
+          puis ajoute-le dans les variables d&apos;environnement Vercel.
+        </p>
+        <div style={{
+          background: '#F8FAFC', borderRadius: 8,
+          padding: '12px 16px', textAlign: 'left',
+        }}>
+          {[
+            'NEXT_PUBLIC_MONERIUM_CLIENT_ID',
+            'MONERIUM_CLIENT_ID',
+            'MONERIUM_API_URL',
+          ].map(v => (
+            <p key={v} style={{
+              fontFamily: 'monospace', fontSize: 12,
+              color: '#475569', marginBottom: 4,
+            }}>
+              {v}
+            </p>
+          ))}
+        </div>
       </div>
     )
   }
