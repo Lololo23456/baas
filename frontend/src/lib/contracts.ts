@@ -13,6 +13,13 @@ export const CONTRACTS = {
 
 export const BASESCAN_URL = 'https://sepolia.basescan.org'
 
+// EURe — token Monerium (utilisé pour les virements SEPA)
+// Mainnet Base : 0xcB444e90D8198415266c6a2724b7900fb12FC56E
+// Sepolia : adresse du sandbox Monerium (configurable via env)
+export const EURE_ADDRESS = (
+  process.env.NEXT_PUBLIC_EURE_ADDRESS ?? '0xcB444e90D8198415266c6a2724b7900fb12FC56E'
+) as `0x${string}`
+
 export const VAULT_ABI = [
   {
     name: 'totalAssets',

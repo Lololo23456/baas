@@ -880,9 +880,7 @@ export default function AccountView() {
 
           {/* ── Onglet Virement SEPA ─────────────────────────── */}
           {sendTab === 'sepa' && (
-            <MoneriumSend
-              maxAmount={maxWithdrawable !== undefined ? formatUnits(maxWithdrawable, 6) : undefined}
-            />
+            <MoneriumSend />
           )}
         </DarkModal>
       )}

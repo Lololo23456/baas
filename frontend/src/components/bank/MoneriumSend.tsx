@@ -1,20 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import { useAccount, useSignMessage } from 'wagmi'
+import { useAccount, useSignMessage, useReadContract } from 'wagmi'
+import { formatUnits } from 'viem'
 import { useMoneriumOAuth } from './useMoneriumOAuth'
 import { buildOrderMessage, isValidIban, MONERIUM_CHAIN, MONERIUM_NETWORK } from '@/lib/monerium'
+import { EURE_ADDRESS, ERC20_ABI } from '@/lib/contracts'
 
 type SendStep = 'idle' | 'signing' | 'submitting' | 'success' | 'error'
 
-type Props = {
-  maxAmount?: string
-}
-
-export default function MoneriumSend({ maxAmount }: Props) {
+export default function MoneriumSend() {
   const { address }          = useAccount()
   const { signMessageAsync } = useSignMessage()
   const { session, account, ready, loading: oauthLoading, error: oauthError, connect } = useMoneriumOAuth()
+
+  const { data: eureBalanceRaw } = useReadContract({
+    address: EURE_ADDRESS,
+    abi:     ERC20_ABI,
+    functionName: 'balanceOf',
+    args:    address ? [address] : undefined,
+    query:   { enabled: !!address },
+  })
+  const eureBalance = eureBalanceRaw ? formatUnits(eureBalanceRaw as bigint, 18) : '0'
 
   const [iban,   setIban]   = useState('')
   const [name,   setName]   = useState('')
@@ -107,8 +114,9 @@ export default function MoneriumSend({ maxAmount }: Props) {
 
     const num = parseFloat(amount)
     if (!amount || isNaN(num) || num <= 0) { setError('Montant invalide.'); return }
-    if (maxAmount && num > parseFloat(maxAmount)) {
-      setError(`Maximum disponible : € ${maxAmount}`); return
+    const maxEure = parseFloat(eureBalance)
+    if (num > maxEure) {
+      setError(`Solde EURe insuffisant. Maximum : € ${maxEure.toFixed(2)}`); return
     }
 
     const formattedAmount = num.toFixed(2)
@@ -203,15 +211,20 @@ export default function MoneriumSend({ maxAmount }: Props) {
           style={{ paddingLeft: 36 }}
         />
       </div>
-      {maxAmount && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
-            Maximum disponible · €&nbsp;{parseFloat(maxAmount).toFixed(2)}
-          </p>
-          <button onClick={() => setAmount(maxAmount)} className="b-btn-ghost" style={{ fontSize: 11 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: parseFloat(eureBalance) === 0 ? 8 : 20 }}>
+        <p className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          Solde EURe · €&nbsp;{parseFloat(eureBalance).toFixed(2)}
+        </p>
+        {parseFloat(eureBalance) > 0 && (
+          <button onClick={() => setAmount(parseFloat(eureBalance).toFixed(2))} className="b-btn-ghost" style={{ fontSize: 11 }}>
             MAX
           </button>
-        </div>
+        )}
+      </div>
+      {parseFloat(eureBalance) === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20, lineHeight: 1.6 }}>
+          Reçois un virement SEPA sur ton IBAN Monerium pour avoir de l&apos;EURe à envoyer.
+        </p>
       )}
 
       {error && (
