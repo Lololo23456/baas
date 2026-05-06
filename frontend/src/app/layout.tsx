@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   title: 'FinBank — Banking rebuilt from first principles',
   description:
     'The first financial institution of the digital era built on the right principles. Total transparency, collective ownership, unbreakable foundations.',
-  keywords: ['fintech', 'DeFi', 'banking', 'blockchain', 'cooperative', 'EURC', 'Base'],
+  keywords: ['fintech', 'DeFi', 'banking', 'blockchain', 'cooperative', 'EURe', 'Base'],
   openGraph: {
     title: 'FinBank — Banking rebuilt from first principles',
     description: 'Total transparency, collective ownership, unbreakable foundations.',

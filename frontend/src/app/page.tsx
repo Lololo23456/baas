@@ -194,7 +194,7 @@ export default function Home() {
                 freeze your balance.
               </p>
               <p style={{ fontSize: 12, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
-                Residual risks: Morpho Blue, EURC issuer, underlying chain.
+                Residual risks: Morpho Blue, EURe issuer, underlying chain.
               </p>
             </div>
 
@@ -349,7 +349,7 @@ export default function Home() {
               },
               {
                 title: 'Third-party dependencies',
-                desc: 'The fiat bridge relies on Monerium (regulated). The stablecoin relies on Circle (EURC). Issues with either provider would affect your ability to move fiat.',
+                desc: 'The fiat bridge relies on Monerium (regulated). The stablecoin relies on Monerium (EURe). Issues with either provider would affect your ability to move fiat.',
               },
               {
                 title: 'Regulatory uncertainty',

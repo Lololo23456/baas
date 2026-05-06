@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinBank — One-Pager</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 8.5pt;
+    line-height: 1.55;
+    color: #1a2332;
+    background: #ffffff;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    padding: 14mm 16mm 10mm 16mm;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    border-bottom: 1.5px solid #1a2332;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .logo {
+    font-size: 17pt;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    color: #0f1e30;
+  }
+
+  .tagline {
+    font-size: 7.5pt;
+    color: #4a5568;
+    font-weight: 400;
+    text-align: right;
+    max-width: 220px;
+    line-height: 1.4;
+  }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 18px;
+    flex: 1;
+  }
+
+  .col { display: flex; flex-direction: column; gap: 11px; }
+
+  /* ── Section ── */
+  .section { }
+
+  .section-title {
+    font-size: 6pt;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #2d5a8e;
+    margin-bottom: 5px;
+    padding-bottom: 3px;
+    border-bottom: 0.5px solid #d1dae6;
+  }
+
+  .section p {
+    font-size: 8pt;
+    color: #2d3748;
+    line-height: 1.55;
+  }
+
+  .section p + p { margin-top: 4px; }
+
+  /* ── Built for ── */
+  .built-for-text {
+    font-size: 8pt;
+    color: #2d3748;
+    line-height: 1.55;
+  }
+
+  /* ── Issue list ── */
+  .issue-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .issue-list li {
+    font-size: 8pt;
+    color: #2d3748;
+    padding-left: 10px;
+    position: relative;
+    margin-bottom: 3px;
+    line-height: 1.5;
+  }
+
+  .issue-list li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: #718096;
+  }
+
+  /* ── Principles ── */
+  .principles { display: flex; flex-direction: column; gap: 4px; }
+
+  .principle {
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+  }
+
+  .principle-label {
+    font-size: 7.5pt;
+    font-weight: 600;
+    color: #1a2332;
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+
+  .principle-desc {
+    font-size: 7.5pt;
+    color: #4a5568;
+    line-height: 1.5;
+  }
+
+  /* ── Steps ── */
+  .steps { display: flex; flex-direction: column; gap: 3px; }
+
+  .step {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    font-size: 7pt;
+    font-weight: 600;
+    color: #2d5a8e;
+    min-width: 14px;
+    padding-top: 1px;
+  }
+
+  .step-text {
+    font-size: 7.5pt;
+    color: #2d3748;
+    line-height: 1.5;
+  }
+
+  /* ── Pricing ── */
+  .pricing-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+    border-bottom: 0.5px solid #edf2f7;
+  }
+
+  .pricing-row:last-child { border-bottom: none; }
+
+  .pricing-label { font-size: 8pt; font-weight: 500; color: #1a2332; }
+  .pricing-value { font-size: 8pt; color: #4a5568; }
+
+  .pricing-note {
+    font-size: 7pt;
+    color: #718096;
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  /* ── Callout ── */
+  .callout {
+    background: #f0f4f8;
+    border-left: 2px solid #2d5a8e;
+    padding: 6px 9px;
+    border-radius: 0 3px 3px 0;
+    margin-top: 5px;
+  }
+
+  .callout p {
+    font-size: 7.5pt;
+    color: #1a2332;
+    line-height: 1.5;
+  }
+
+  /* ── Risk ── */
+  .risk-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .risk-list li {
+    font-size: 7.5pt;
+    color: #4a5568;
+    padding-left: 10px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .risk-list li::before {
+    content: '·';
+    position: absolute;
+    left: 2px;
+    color: #a0aec0;
+    font-size: 10pt;
+    line-height: 1.2;
+  }
+
+  /* ── Pilot ── */
+  .pilot-box {
+    background: #f7fafc;
+    border: 0.5px solid #cbd5e0;
+    border-radius: 3px;
+    padding: 7px 9px;
+  }
+
+  .pilot-box p { font-size: 7.5pt; color: #2d3748; line-height: 1.55; }
+  .pilot-box p + p { margin-top: 3px; }
+
+  .pilot-cta {
+    margin-top: 5px;
+    font-size: 7.5pt;
+    font-weight: 500;
+    color: #2d5a8e;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    height: 0.5px;
+    background: #e2e8f0;
+    margin: 2px 0;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    border-top: 0.5px solid #cbd5e0;
+    padding-top: 6px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-left { font-size: 7pt; color: #718096; }
+  .footer-right { font-size: 7pt; color: #718096; text-align: right; }
+  .footer strong { color: #2d5a8e; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">FinBank</div>
+    <div class="tagline">Self-custody treasury with an IBAN bridge<br>Built for Belgian freelancers</div>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid">
+
+    <!-- Left column -->
+    <div class="col">
+
+      <div class="section">
+        <div class="section-title">Built for</div>
+        <p class="built-for-text">Belgian freelancers with €5k–€25k monthly volume who rely on Wise or Revolut and want a safer fallback when accounts are blocked, closed, or held — especially after large inflows, cross-border payments, or crypto-linked activity.</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">The issue</div>
+        <p>When a payment account is blocked:</p>
+        <ul class="issue-list" style="margin-top:5px;">
+          <li>Transfers are stopped and balances can be held for weeks</li>
+          <li>Source-of-funds requests create uncertainty and delays</li>
+          <li>Your business cashflow becomes dependent on a single provider's decision</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <div class="section-title">What FinBank provides</div>
+        <p>A self-custody treasury application on Base (EVM L2) designed to reduce single-point-of-failure risk.</p>
+
+        <div class="callout" style="margin-top:6px;">
+          <p><strong>FinBank cannot freeze or move funds held in your self-custody vault.</strong></p>
+        </div>
+
+        <div class="principles" style="margin-top:7px;">
+          <div class="principle">
+            <span class="principle-label">Self-custody by default</span>
+            <span class="principle-desc">You control the funds in your on-chain vault</span>
+          </div>
+          <div class="principle">
+            <span class="principle-label">Isolated vault per user</span>
+            <span class="principle-desc">No pooled balance, full transparency</span>
+          </div>
+          <div class="principle">
+            <span class="principle-label">IBAN bridge for EUR rails</span>
+            <span class="principle-desc">Via Monerium (regulated)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">If the IBAN is blocked</div>
+        <p>Monerium controls the IBAN service. Once funds are in your self-custody vault, you can withdraw on-chain immediately to any address or exchange. There is no lockup by FinBank.</p>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div class="col">
+
+      <div class="section">
+        <div class="section-title">How it works</div>
+        <div class="steps">
+          <div class="step"><span class="step-num">1.</span><span class="step-text">Create your account — Face ID via ERC-4337 smart account, no seed phrase required</span></div>
+          <div class="step"><span class="step-num">2.</span><span class="step-text">Receive EUR via your Monerium IBAN</span></div>
+          <div class="step"><span class="step-num">3.</span><span class="step-text">Hold value as EURe in your isolated vault on Base</span></div>
+          <div class="step"><span class="step-num">4.</span><span class="step-text">View account activity — deposits, withdrawals, balances</span></div>
+          <div class="step"><span class="step-num">5.</span><span class="step-text">Withdraw anytime — back to IBAN or on-chain exit immediately</span></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Pricing</div>
+        <div class="pricing-row">
+          <span class="pricing-label">FinBank Core</span>
+          <span class="pricing-value">Free</span>
+        </div>
+        <div class="pricing-row">
+          <span class="pricing-label">Earn (opt-in)</span>
+          <span class="pricing-value">15% performance fee on yield only</span>
+        </div>
+        <p class="pricing-note">Earn is optional. Allocate EURe to Morpho Blue strategies at your discretion. No yield = no fee. You can disable Earn anytime. Withdrawal timing depends on market liquidity — an estimate is shown before confirmation.</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Closed pilot — 8 to 15 users</div>
+        <div class="pilot-box">
+          <p>We are onboarding a small group of Belgian freelancers for a closed pilot.</p>
+          <p>Self-serve onboarding guide + optional 10-minute setup call. Support response within 48 hours.</p>
+          <p class="pilot-cta">Request pilot access → fin-bank.xyz</p>
+        </div>
+        <p style="font-size:7pt; color:#718096; margin-top:5px;">We will ask about monthly volume, current setup, any freeze or hold history, and contact details.</p>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Risk & compliance</div>
+        <ul class="risk-list">
+          <li>FinBank is not a licensed bank — it is software for self-custody treasury management</li>
+          <li>IBAN availability depends on Monerium and may be paused or closed</li>
+          <li>EURe and DeFi carry risks: smart contracts, liquidity, stablecoin issuer</li>
+          <li>Yield is variable and not guaranteed</li>
+          <li>Seek advice from a qualified accountant or lawyer for your circumstances</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-left">
+      <strong>fin-bank.xyz</strong> &nbsp;·&nbsp; Testnet — Base Sepolia
+    </div>
+    <div class="footer-right">
+      Contact &nbsp;<strong>l.nys@icloud.com</strong><br>
+      FinBank is not a licensed financial institution
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
