@@ -43,6 +43,18 @@ Les mêmes principes que les banques coopératives (Crédit Mutuel, Credit Agric
 
 ---
 
+## Fondateur
+
+- **Nom** : Loïc Nys
+- **Âge** : 20 ans
+- **Localisation** : Tervuren, Belgique
+- **Profil** : Autodidacte, solo founder, pas de diplôme CS
+- **Email** : l.nys@icloud.com
+- **X** : @Fin_Bank_
+- **GitHub** : github.com/Lololo23456/baas
+
+---
+
 ## Décisions architecturales actées (2026-04-25)
 
 | Brique | Décision | Raison |
@@ -390,25 +402,38 @@ npm run dev   # indexeur + API sur :3001 (RPC public Base Sepolia)
 - Régulateur belge crypto : **FSMA**
 
 ### Partenaires
-- **Monerium** (IBAN non-custodial, pont SEPA ↔ stablecoin euro) : formulaire de contact envoyé le 2026-04-26. En attente de réponse (délai typique 5-7 jours ouvrables)
-  - ⚠️ Monerium émet **EURe** (pas EURC) — décision d'architecture à prendre : accepter EURe dans le Vault, ou swap auto EURe → EURC via DEX
+- **Monerium** (IBAN non-custodial, pont SEPA ↔ stablecoin euro) : formulaire de contact envoyé le 2026-04-26. En attente de réponse.
+  - ✅ **Décision actée** : accepter **EURe** directement dans le Vault (pas de swap EURC). Plus simple, moins de frais, pas de slippage.
+  - À confirmer avec Monerium : liquidité EURe sur Morpho Blue Base mainnet suffisante ?
 - **Audit externe** : à sélectionner (Code4rena pour commencer, Spearbit si budget dispo)
+
+---
+
+## Positionnement actuel (2026-05-09)
+
+FinBank se positionne comme une **self-custody treasury** avec pont IBAN — pas comme une "banque crypto". Le terme "banque" est évité dans les communications pour raisons réglementaires. Le pitch est centré sur la réduction du risque de single-point-of-failure pour les freelancers belges (€5k–€25k/mois) qui dépendent de Wise/Revolut.
+
+### Stablecoin
+- **EURe (Monerium)** — décision actée, remplace EURC (Circle)
+- Morpho Blue présenté comme **opt-in (Earn)** — pas forcé. L'utilisateur peut juste garder ses EURe dans le vault sans yield.
+
+### One-pager
+- `docs/finbank-onepager.html` — PDF A4 banking style, export-ready
 
 ---
 
 ## Prochaines étapes (ordre de priorité)
 
-### Court terme (maintenant → 4 semaines)
-1. **Attendre réponse Monerium** — relancer par email direct si rien sous 7 jours ouvrables
-2. **Créer la BV belge** — notaire requis, compter 2-4 semaines et ~1500€
-3. **Sélectionner firme d'audit** — Code4rena (compétitif, public) ou Spearbit (privé)
-4. **10 beta users** — freelances du réseau perso, tests sur Sepolia avec faux euros
+### Court terme (maintenant)
+1. **8–15 beta users** — outreach LinkedIn + Google Form. Freelances belges €5k–€25k/mois avec historique de freeze/hold.
+2. **Relancer Monerium** — pas de réponse depuis le 2026-04-26
+3. **Lancer Code4rena** — audit de sécurité, nécessaire avant mainnet
 
-### Moyen terme (1-3 mois)
-5. **Intégration Monerium** — selon leur réponse, adapter le Vault (EURe ou swap)
-6. **Audit externe** — lancer le processus
-7. **Décision EURe vs EURC** — après discussion Monerium
+### Moyen terme (1–3 mois)
+4. **Créer la BV belge** — Lexod.be (~300–500€) ou notaire (~1500€)
+5. **Consultation juridique** — classification $FBK sous MiCA, usage du mot "banque"
+6. **Vault V2** — mode "hold only" sans Morpho (opt-in Earn)
 
 ### Long terme (post-audit)
-8. **Mainnet Base** — cap TVL initial, whitelist fermée
-9. **Enregistrement FSMA** (PSAV) — avec la BV belge créée
+7. **Mainnet Base** — cap TVL initial, whitelist fermée, objectif septembre 2026
+8. **Enregistrement FSMA** (PSAV) — avec la BV belge créée
